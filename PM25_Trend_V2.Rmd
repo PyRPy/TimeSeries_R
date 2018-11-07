@@ -1,0 +1,116 @@
+---
+title: "PM25_Trend"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(magrittr)
+
+```
+
+Read and inspect the data
+```{r}
+pm25 <- read.table("PRSA_data_2010.1.1-2014.12.31.csv", sep=",", skip = 0,  header = T)
+head(pm25)
+tail(pm25)
+```
+Preliminary EDA
+```{r}
+# summary(pm25)
+qplot(data = pm25, x=year, y=pm2.5)
+```
+Need to combined 'year', 'month', 'day', and 'hour' to build a time or date column 
+Ref : https://stackoverflow.com/questions/26334763/merge-three-different-columns-into-a-date-in-r
+```{r}
+pm25$date <- with(pm25, paste(year, month,day,  sep="-"))
+pm25$time <- with(pm25, paste(date, hour , sep=" "))
+# pm25$date <- paste(pm25$year, pm25$mon, pm25$day, sep="-") %>% ymd() %>% as.Date()
+pm25$time <- with(pm25, ymd_h(time))
+head(pm25)
+```
+```{r}
+str(pm25)
+qplot(data = pm25, x=time, y=pm2.5) # messy plot
+```
+```{r}
+pm25 %>% filter(time < "2011-01-01") %>%
+  ggplot(aes(x=time, y=pm2.5)) +
+  geom_line()+
+  ylab("pm2.5 mg/m3")+
+  xlab("") + 
+  ggtitle("PM2.5 Trend Over Time")
+```
+How many data points
+```{r}
+pm25_day <- pm25 %>% 
+  na.omit() %>%
+  group_by(Time= cut(time, 'days')) %>% 
+  summarise(pm2.5=mean(pm2.5))
+
+head(pm25_day)
+# qplot(x=pm25_day$Time, y=pm25_day$pm2.5)
+```
+```{r}
+pm25_day %>% 
+  ggplot(aes(x=Time, y=pm2.5)) +
+  geom_point()+
+  ylab("pm2.5 mg/m3")+
+  xlab("") + 
+  ggtitle("PM2.5 Trend Over Time")
+# Still too many points in the plot
+```
+
+
+```{r}
+# dim(pm25)
+# pm25 <- na.omit(pm25)
+# str(pm25)
+# pm25$pm2.5 <- as.numeric(pm25$pm2.5)
+# pm25$TEMP <- as.numeric(pm25$TEMP)
+pm25_trend <- pm25[, c("time", "pm2.5")]
+```
+Convert data set time series
+```{r}
+library(xts)
+pm25_xts<-xts(pm25_trend[,-1], order.by = pm25_trend$time)
+# looks like xts convert everything into 'char'
+str(pm25_xts)
+```
+Plot the time series after conversion :
+```{r}
+# autoplot(pm25_xts[, "pm2.5"])
+# plot.ts(pm25_xts)
+autoplot(pm25_xts)
+```
+To smooth out the pm2.5 concentration - weekly or 168 hour interval
+```{r}
+# add simple moving average
+library("TTR")
+# pm25_xts <- na.omit(pm25_xts)
+# head(pm25_xts)
+pm25_xts <- na.omit(pm25_xts)
+# pm25_xts$pm2.5 <- as.numeric(pm25_xts$pm2.5)
+plot(SMA(pm25_xts, n=168)) # something not right about this trend
+```
+```{r}
+# autoplot(pm25_xts)
+pm25_xts_sma <- SMA(pm25_xts, 24)
+autoplot(pm25_xts_sma)
+```
+```{r}
+pm25_day$Time <- ymd_hms(pm25_day$Time)
+pm25_day <- na.omit(pm25_day)
+head(pm25_day)
+pm25_day
+pm25_xts_day<-xts(pm25_day[,-1], order.by = pm25_day$Time)
+plot(pm25_xts_day)
+```
+
