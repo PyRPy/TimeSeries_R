@@ -1,0 +1,80 @@
+---
+title: "PM25_Trend"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(magrittr)
+
+```
+
+Read and inspect the data
+```{r}
+pm25 <- read.table("PRSA_data_2010.1.1-2014.12.31.csv", sep=",", skip = 0,  header = T)
+head(pm25)
+tail(pm25)
+```
+Preliminary EDA
+```{r}
+summary(pm25)
+qplot(data = pm25, x=year, y=pm2.5)
+```
+Need to combined 'year', 'month', 'day', and 'hour' to build a time or date column 
+Ref : https://stackoverflow.com/questions/26334763/merge-three-different-columns-into-a-date-in-r
+```{r}
+pm25$date <- with(pm25, paste(year, month,day,  sep="-"))
+pm25$time <- with(pm25, paste(date, hour , sep=" "))
+# pm25$date <- paste(pm25$year, pm25$mon, pm25$day, sep="-") %>% ymd() %>% as.Date()
+pm25$time <- with(pm25, ymd_h(time))
+head(pm25)
+```
+```{r}
+str(pm25)
+qplot(data = pm25, x=as.Date(date), y=pm2.5)
+```
+```{r}
+pm25 %>% filter(time < "2011-01-01") %>%
+  ggplot(aes(x=time, y=pm2.5)) +
+  geom_line()+
+  ylab("pm2.5 mg/m3")+
+  xlab("") + 
+  ggtitle("PM2.5 Trend Over Time")
+```
+How many data points
+```{r}
+dim(pm25)
+pm25 <- na.omit(pm25)
+str(pm25)
+```
+Convert data set time series
+```{r}
+library(xts)
+pm25_xts<-as.xts(pm25[, c("pm2.5", "DEWP", "TEMP", "PRES", "cbwd", "Iws", "Is", "Ir")], order.by=pm25$time)
+# looks like xts convert everything into 'char'
+pm25_xts$pm2.5 <- as.numeric(pm25_xts$pm2.5)
+pm25_xts$TEMP <- as.numeric(pm25_xts$TEMP)
+```
+Plot the time series after conversion :
+```{r}
+# autoplot(pm25_xts[, "pm2.5"])
+plot.ts(pm25_xts[, "pm2.5"])
+```
+To smooth out the pm2.5 concentration
+```{r}
+# add simple moving average
+library("TTR")
+# pm25_xts <- na.omit(pm25_xts)
+head(pm25_xts)
+
+pm25_xts$pm2.5 <- as.numeric(pm25_xts$pm2.5)
+plot.ts(SMA(as.numeric(pm25_xts[, "pm2.5"]), n=720))
+```
+
