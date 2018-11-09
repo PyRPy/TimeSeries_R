@@ -1,0 +1,61 @@
+---
+title: "NetGen_USA"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# This project is to analyze the electricity generation from different sectors in USA.
+## To input data 
+```{r}
+library(readr)
+netgen <- read_csv("Net_generation_United_States_all_sectors_monthly.csv", 
+      col_types = cols(Month = col_character()), 
+      skip = 4)
+
+# inspect the data set
+head(netgen)
+names(netgen)
+colnames(netgen) <- c("Month", "all_fuels", "coal", "natural_gas", "nuclear", "hydro", "wind", "solar")
+
+head(netgen)
+```
+```{r}
+# change the 'month' to date type 
+# try as.Date first
+# netgen$Month <- as.Date.character(netgen$Month)
+library(lubridate)
+netgen$Month <- mdy(netgen$Month)
+head(netgen)
+```
+# plot all the trend on the same graph
+https://stackoverflow.com/questions/10349206/add-legend-to-ggplot2-line-plot
+```{r message=FALSE}
+library(dplyr)
+library(ggplot2)
+netgen %>% ggplot (aes(x=Month, y=all_fuels)) +
+            geom_line() +
+            labs (x="", y="1,000 MWh")+
+            geom_line(aes(x=Month, y=coal), color="red")
+```
+```{r}
+my.cols <- heat.colors(8, alpha=1)
+my.names <- colnames(netgen)
+names(my.cols) <- my.names
+
+
+data<- netgen
+p <-  ggplot(data, aes(x = Month))
+
+for (i in 2:7){
+  p <- p + geom_line(aes_(y = as.name(names(data[i+1])), colour = 
+colnames(data[i+1])))#as.character(my.names[i])))
+}
+p + scale_colour_manual("", 
+                        breaks = as.character(my.names),
+                        values = my.cols)
+p + labs (x="", y="1,000 MWh")
+
+```
+
