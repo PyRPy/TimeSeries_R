@@ -55,4 +55,6 @@ colnames(data[i+1])))#as.character(my.names[i])))
 p + labs (x="", y="1,000 MWh")
 
 ```
-
+# Observations :
+* It shows that 'solar' only picks up the momentumn from around year 2014 in the US.
+* It also shows that after 2015, electricity from natural gas started exceeding coal based electricity ! 
