@@ -1,6 +1,8 @@
 ---
 title: "NetGen_USA"
-output: html_document
+output:
+  word_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -10,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ## To input data 
 ```{r}
 library(readr)
-netgen <- read_csv("Net_generation_United_States_all_sectors_monthly.csv", 
+netgen <- read_csv("Data_TS/Net_generation_United_States_all_sectors_monthly.csv", 
       col_types = cols(Month = col_character()), 
       skip = 4)
 
@@ -31,7 +33,7 @@ head(netgen)
 ```
 # plot all the trend on the same graph
 https://stackoverflow.com/questions/10349206/add-legend-to-ggplot2-line-plot
-```{r message=FALSE}
+```{r message=FALSE, warning=FALSE,  fig.width=7, fig.height=4}
 library(dplyr)
 library(ggplot2)
 netgen %>% ggplot (aes(x=Month, y=all_fuels)) +
@@ -39,7 +41,8 @@ netgen %>% ggplot (aes(x=Month, y=all_fuels)) +
             labs (x="", y="1,000 MWh")+
             geom_line(aes(x=Month, y=coal), color="red")
 ```
-```{r}
+
+```{r, fig.width=9, fig.height=4}
 my.cols <- heat.colors(8, alpha=1)
 my.names <- colnames(netgen)
 names(my.cols) <- my.names
@@ -55,6 +58,7 @@ colnames(data[i+1])))#as.character(my.names[i])))
 p + labs (x="", y="1,000 MWh")
 
 ```
+
 # Observations :
 * It shows that 'solar' only picks up the momentumn from around year 2014 in the US.
 * It also shows that after 2015, electricity from natural gas started exceeding coal based electricity ! 
