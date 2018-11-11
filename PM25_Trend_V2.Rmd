@@ -16,18 +16,19 @@ library(magrittr)
 
 ```
 
-Read and inspect the data
+# Read and inspect the data
 ```{r}
 pm25 <- read.table("Data_TS/PRSA_data_2010.1.1-2014.12.31.csv", sep=",", skip = 0,  header = T)
 head(pm25)
 tail(pm25)
 ```
-Preliminary EDA
+# Preliminary EDA
 ```{r}
 # summary(pm25)
 qplot(data = pm25, x=year, y=pm2.5)
 ```
-Data wrangling, deed to combined 'year', 'month', 'day', and 'hour' to build a time or date column 
+# Data wrangling 
+* need to combined 'year', 'month', 'day', and 'hour' to build a time or date column 
 Ref : https://stackoverflow.com/questions/26334763/merge-three-different-columns-into-a-date-in-r
 ```{r}
 pm25$date <- with(pm25, paste(year, month,day,  sep="-"))
@@ -81,6 +82,7 @@ pm25_day %>%
 # pm25$TEMP <- as.numeric(pm25$TEMP)
 pm25_trend <- pm25[, c("time", "pm2.5")]
 ```
+# Data Preparation for Time Series analysis
 Convert data set time series
 ```{r}
 library(xts)
@@ -175,4 +177,154 @@ pm25_xts%>%ets()%>% forecast(h=168) %>%autoplot()
 ```{r}
 checkresiduals(fit_arima)
 ```
+# Data Preparation for the LSTM model from KerasR
+Transform data into matrix format required for nueral network, first remove the time column
+If it is only one column in the data frame after removing date column, you don't need to transform by 'matrix'
+```{r}
+data <- pm25_trend$pm2.5
+# length(data)
+# dim(data)
+# head(pm25_trend)
+# need to remove 'NA's
+data <- na.omit(data)
+dim(data)
+```
+To normalize the data by Z-score method
+```{r}
+train_data <- data[1:25000]
+mean <- mean(train_data)
+std <- sd(train_data)
+data <- scale(data, center = mean, scale = std)
+```
+
+Reference : Deep Learning with R, 2018
+```{r}
+library(keras)
+generator <- function(data, lookback, delay, min_index, max_index,
+                      shuffle = FALSE, batch_size = 128, step = 6) {
+  if (is.null(max_index))
+    max_index <- nrow(data) - delay - 1
+  i <- min_index + lookback
+  function() {
+    if (shuffle) {
+      rows <- sample(c((min_index+lookback):max_index), size = batch_size)
+    } else {
+      if (i + batch_size >= max_index)
+        i <<- min_index + lookback
+      rows <- c(i:min(i+batch_size, max_index))
+      i <<- i + length(rows)
+    }
+    
+    samples <- array(0, dim = c(length(rows), 
+                                lookback / step,
+                                dim(data)[[-1]]))
+    targets <- array(0, dim = c(length(rows)))
+                     
+    for (j in 1:length(rows)) {
+      indices <- seq(rows[[j]] - lookback, rows[[j]], 
+                     length.out = dim(samples)[[2]])
+      samples[j,,] <- data[indices,]
+      targets[[j]] <- data[rows[[j]] + delay,1]
+    }            
+    
+    list(samples, targets)
+  }
+}
+```
+## Define the time steps, train, validation and test time steps
+```{r}
+lookback <-720 # one year or 8760 hours 365 x 24= 8760
+step <- 24
+delay <- 168 # a week delay
+batch_size <- 128 # work hours
+
+train_gen <- generator(
+  data,
+  lookback = lookback,
+  delay = delay,
+  min_index = 1,
+  max_index = 25000,
+  shuffle = FALSE,
+  step = step, 
+  batch_size = batch_size
+)
+
+val_gen = generator(
+  data,
+  lookback = lookback,
+  delay = delay,
+  min_index = 25001,
+  max_index = 30000,
+  step = step,
+  batch_size = batch_size
+)
+
+test_gen <- generator(
+  data,
+  lookback = lookback,
+  delay = delay,
+  min_index = 30001,
+  max_index = NULL,
+  step = step,
+  batch_size = batch_size
+)
+
+# This is how many steps to draw from `val_gen`
+# in order to see the whole validation set:
+val_steps <- (30000 - 25001 - lookback) / batch_size
+
+# This is how many steps to draw from `test_gen`
+# in order to see the whole test set:
+test_steps <- (nrow(data) - 30000 - lookback) / batch_size
+```
+## Recurrent baseline
+```{r}
+model <- keras_model_sequential() %>% 
+  layer_gru(units = 32, dropout=0.3, recurrent_dropout=0.3,
+            input_shape = list(NULL, dim(data)[[-1]])) %>% 
+  layer_dense(units = 1)
+
+model %>% compile(
+  optimizer = optimizer_rmsprop(),
+  loss = "mae"
+)
+
+
+```
+## start iterations
+```{r}
+history <- model %>% fit_generator(
+  train_gen,
+  steps_per_epoch = 500,
+  epochs = 10,
+  validation_data = val_gen,
+  validation_steps = val_steps
+)
+```
+
+## plot errors trend
+```{r}
+plot(history)
+```
+## Make predictions based on the previous data and plot the preds
+```{r}
+prediction_test<-c()
+for (i in 1: test_steps) {
+    prediction.set <- test_gen()[[1]]  
+    prediction <- predict(model, prediction.set)  
+
+    prediction_test<-rbind(prediction_test, prediction)  
+      
+}
+
+prediction_test_1 <- mean[[1]] + std[[1]]*prediction_test[, 1] # get back to original 
+# prediction_real <- mean[[1]] + std[[1]]*prediction.set # get back to original 
+plot(prediction_test_1, pch = 16, cex = .2, xlab = "Time-Hours", ylab = "pm2.5 levels")
+# lines(prediction_real, col="red") # it's 'future' , no real data available
+```
+```{r}
+qplot(y=prediction_test_1) +
+  ylab("pm2.5 levels")
+```
+
 
