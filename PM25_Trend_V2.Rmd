@@ -120,4 +120,59 @@ autoplot(pm25_xts_sma)
 # head(pm25_xts_day)
 # autoplot(pm25_xts_day)
 ```
+Make 'Difference' on data to make data stationary on mean (remove trend)
+```{r}
+autoplot(diff(pm25_xts),ylab='Differenced CO concentration')
+```
+It looks like there are still some lumps around the 'year' transition period
+
+Plot ACF and PACF to identify potential AR and MA model
+```{r fig.height=3, fig.width=8}
+par(mfrow = c(1,2))
+acf(na.omit(diff(pm25_xts)),main='pm25')
+pacf(na.omit(diff(pm25_xts)),main='pm25')
+```
+Identification of best fit ARIMA model
+```{r}
+require(forecast)
+ARIMAfit <- auto.arima(pm25_xts, approximation=FALSE,trace=FALSE)
+summary(ARIMAfit)
+```
+Forecast CO using the best fit ARIMA model 
+https://stackoverflow.com/questions/7154133/plot-new-has-not-been-called-yet
+trouble shooting - run the lines together, select all lines and run ! solved
+```{r}
+pred.steps <- 48 # hours
+par(mfrow = c(1,1))
+pred <- predict(ARIMAfit, n.ahead = pred.steps)
+# pred
+# plot(pm25_xts,type='l', xlab = 'Hour', ylab = 'pm2.5 levels')
+# lines(pred$pred,col='blue')
+# lines(pred$pred+2*pred$se,col='orange')
+# lines(pred$pred-2*pred$se,col='orange')
+
+plot(x=c(1:pred.steps), y=pred$pred,col='blue')
+```
+Observe the ACF :
+```{r message=FALSE, warning=FALSE}
+library(fpp2)
+ggAcf(pm25_xts) +
+  ggtitle("pm2.5 concentration ACF profile")
+```
+Use ARIMA model to forecast the CO concentration :
+```{r}
+fit_arima<-auto.arima(pm25_xts)
+summary(fit_arima)
+```
+To preidct the next hour CO concentration :
+```{r}
+fit_arima%>%forecast(h=72)%>%autoplot()
+```
+The Arima model is not that 'impressive', let's try ets model for the forecasting :
+```{r}
+pm25_xts%>%ets()%>% forecast(h=168) %>%autoplot()
+```
+```{r}
+checkresiduals(fit_arima)
+```
 
