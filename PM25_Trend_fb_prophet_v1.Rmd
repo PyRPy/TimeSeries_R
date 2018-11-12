@@ -1,0 +1,105 @@
+---
+title: "PM25_Trend_prophet"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(magrittr)
+
+```
+
+# Read and inspect the data
+```{r}
+pm25 <- read.table("PRSA_data_2010.1.1-2014.12.31.csv", sep=",", skip = 0,  header = T)
+head(pm25)
+tail(pm25)
+```
+# Preliminary EDA and Data wrangling 
+* need to combined 'year', 'month', 'day', and 'hour' to build a time or date column 
+Ref : https://stackoverflow.com/questions/26334763/merge-three-different-columns-into-a-date-in-r
+```{r}
+pm25$date <- with(pm25, paste(year, month,day,  sep="-"))
+pm25$time <- with(pm25, paste(date, hour , sep=" "))
+# pm25$date <- paste(pm25$year, pm25$mon, pm25$day, sep="-") %>% ymd() %>% as.Date()
+pm25$time <- with(pm25, ymd_h(time))
+head(pm25)
+```
+Check the data structure again
+```{r}
+str(pm25)
+```
+Plot a shorter time frame (before 2011)
+```{r}
+pm25 %>% filter(time < "2011-01-01") %>%
+  ggplot(aes(x=time, y=pm2.5)) +
+  geom_line()+
+  ylab("pm2.5 mg/m3")+
+  xlab("") + 
+  ggtitle("PM2.5 Trend Over Time")
+```
+How many data points that are 'NA' and to sample daily average of the pm25 levels
+```{r}
+pm25_day <- pm25 %>% 
+  na.omit() %>%
+  group_by(Time= cut(time, 'days')) %>% 
+  summarise(pm2.5=mean(pm2.5))
+
+head(pm25_day)
+# qplot(x=pm25_day$Time, y=pm25_day$pm2.5)
+```
+Plot the pm25 again, it shows the interval patterns over time
+* after sampling the 'time' converted to 'factor', need to convert back to date, but first do the 'character' then 'date, it needs two steps.
+```{r}
+pm25_day %>% 
+  ggplot(aes(x=as.Date(as.character(Time)), y=pm2.5)) +
+  geom_line()+
+  ylab("pm2.5 mg/m3")+
+  xlab("") + 
+  ggtitle("PM2.5 Trend Over Time")
+# Still too many points in the plot
+```
+
+To create a dataframe with 'time' and 'pm2.5' only, two columns only
+```{r}
+pm25_day$Time <- as.Date(as.character(pm25_day$Time))
+head(pm25_day)
+# pm25_trend <- pm25[, c("time", "pm2.5")]
+colnames(pm25_day) <- list('ds', 'y')
+# pm25_trend <- na.omit(pm25_trend)
+# head(pm25_trend)
+# tail(pm25_trend)
+```
+Reference for the anomaly analysis package from facebook
+https://facebook.github.io/prophet/docs/quick_start.html#r-api
+
+```{r}
+library(prophet)
+m <- prophet(pm25_day)
+```
+```{r}
+future <- make_future_dataframe(m, periods = 365)
+tail(future)
+dim(future)
+```
+
+```{r}
+forecast <- predict(m, future)
+tail(forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')])
+```
+
+```{r}
+plot(m, forecast)
+```
+```{r}
+prophet_plot_components(m, forecast)
+```
+
+
