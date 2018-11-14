@@ -1,0 +1,100 @@
+---
+title: "PM25_Trend_Anomaly Detection"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(magrittr)
+library(tidyverse)
+```
+
+# Read and inspect the data
+```{r}
+pm25 <- read.table("Data_TS/PRSA_data_2010.1.1-2014.12.31.csv", sep=",", skip = 0,  header = T)
+head(pm25)
+tail(pm25)
+```
+# Preliminary EDA
+```{r}
+# summary(pm25)
+qplot(data = pm25, x=as.factor(year), y=pm2.5, geom = "boxplot")
+```
+# Data wrangling 
+* need to combined 'year', 'month', 'day', and 'hour' to build a time or date column 
+Ref : https://stackoverflow.com/questions/26334763/merge-three-different-columns-into-a-date-in-r
+```{r}
+pm25$date <- with(pm25, paste(year, month,day,  sep="-"))
+pm25$time <- with(pm25, paste(date, hour , sep=" "))
+# pm25$date <- paste(pm25$year, pm25$mon, pm25$day, sep="-") %>% ymd() %>% as.Date()
+pm25$time <- with(pm25, ymd_h(time))
+head(pm25)
+```
+Check the data structure and plot it again 
+```{r}
+str(pm25)
+
+```
+Plot a shorter time frame (before 2011)
+```{r fig.height=10}
+pm25 %>% ggplot(aes(x=time, y=pm2.5)) +
+  geom_line()+
+  ylab("pm2.5 mg/m3")+
+  xlab("") + 
+  ggtitle("PM2.5 Trend Over Time")+
+  facet_wrap(~ year, nrow = 5, scales="free")
+```
+How many data points that are 'NA' and to sample daily average of the pm25 levels
+```{r}
+pm25_day <- pm25 %>% 
+  na.omit() %>%
+  group_by(Time= cut(time, 'days')) %>% 
+  summarise(pm2.5=mean(pm2.5))
+  
+
+head(pm25_day)
+# qplot(x=pm25_day$Time, y=pm25_day$pm2.5)
+```
+Plot the pm25 again, it shows the interval patterns over time
+* after sampling the 'time' converted to 'factor', need to convert back to date, but first do the 'character' then 'date, it needs two steps.
+```{r fig.height=10}
+pm25_day$Time <- as.Date(as.character(pm25_day$Time))
+pm25_day %>% ggplot(aes(x=Time, y=pm2.5)) +
+  geom_line()+
+  ylab("pm2.5 mg/m3")+
+  xlab("") + 
+  ggtitle("PM2.5 Trend Over Time")+
+  facet_wrap(~ year(Time), nrow = 5, scales="free") # use 'lubricate' to extract year
+```
+
+
+```{r}
+pm25_trend <- pm25[, c("time", "pm2.5")]
+```
+```{r}
+# check the data structure again
+str(pm25_trend)
+sum(is.na(pm25_trend))
+pm25_trend <- na.omit(pm25_trend)
+
+# check NAs again 
+sum(is.na(pm25_trend))
+```
+Apply anomaly function 
+Reference : https://www.r-bloggers.com/anomaly-detection-in-r-2/
+```{r}
+anomalies_pm25 <- AnomalyDetectionTs(pm25_trend, direction="pos", plot=TRUE)
+anomalies_pm25$plot
+```
+```{r}
+anomalies_pm25$anoms
+```
+
+
