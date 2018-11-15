@@ -1,0 +1,164 @@
+---
+title: "PM25_Trend"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(magrittr)
+
+```
+
+# Read and inspect the data
+```{r}
+pm25 <- read.table("Data_TS/PRSA_data_2010.1.1-2014.12.31.csv", sep=",", skip = 0,  header = T)
+head(pm25)
+tail(pm25)
+```
+# Preliminary EDA
+```{r}
+# summary(pm25)
+qplot(data = pm25, x=year, y=pm2.5)
+```
+# Data wrangling 
+* need to combined 'year', 'month', 'day', and 'hour' to build a time or date column 
+Ref : https://stackoverflow.com/questions/26334763/merge-three-different-columns-into-a-date-in-r
+```{r}
+pm25$date <- with(pm25, paste(year, month,day,  sep="-"))
+pm25$time <- with(pm25, paste(date, hour , sep=" "))
+# pm25$date <- paste(pm25$year, pm25$mon, pm25$day, sep="-") %>% ymd() %>% as.Date()
+pm25$time <- with(pm25, ymd_h(time))
+head(pm25)
+```
+
+How many data points that are 'NA' and to sample daily average of the pm25 levels
+```{r}
+pm25_day <- pm25 %>% 
+  na.omit() %>%
+  group_by(Time= cut(time, 'days')) %>% 
+  summarise(pm2.5=mean(pm2.5))
+
+head(pm25_day)
+# qplot(x=pm25_day$Time, y=pm25_day$pm2.5)
+```
+Plot the pm25 again, it shows the interval patterns over time
+* after sampling the 'time' converted to 'factor', need to convert back to date, but first do the 'character' then 'date, it needs two steps.
+```{r}
+pm25_day %>% 
+  ggplot(aes(x=as.Date(as.character(Time)), y=pm2.5)) +
+  geom_line()+
+  ylab("pm2.5 mg/m3")+
+  xlab("") + 
+  ggtitle("PM2.5 Trend Over Time")
+# Still too many points in the plot
+```
+
+
+```{r}
+pm25_trend <- pm25[, c("time", "pm2.5")]
+```
+# Data Preparation for Time Series analysis
+Convert data set time series
+```{r}
+library(xts)
+pm25_xts<-xts(pm25_trend[,-1], order.by = pm25_trend$time)
+# looks like xts convert everything into 'char'
+str(pm25_xts)
+```
+Plot the time series after conversion :
+```{r}
+# autoplot(pm25_xts[, "pm2.5"])
+plot.ts(pm25_xts)
+# autoplot(pm25_xts)
+# head(pm25_xts)
+```
+To smooth out the pm2.5 concentration - weekly or 168 hour interval
+```{r}
+# add simple moving average
+library("TTR")
+# pm25_xts <- na.omit(pm25_xts)
+# head(pm25_xts)
+pm25_xts <- na.omit(pm25_xts)
+# pm25_xts$pm2.5 <- as.numeric(pm25_xts$pm2.5)
+```
+Plot it on a 'weekly' basis, which is 168 hours equivalent
+```{r}
+# autoplot(pm25_xts)
+pm25_xts_sma <- SMA(pm25_xts, 168) # 24 hour average, or per day
+autoplot(pm25_xts_sma)
+```
+Make 'Difference' on data to make data stationary on mean (remove trend)
+```{r}
+autoplot(diff(pm25_xts),ylab='Differenced pm2.5 concentration')
+```
+It looks like there are still some lumps around the 'year' transition period
+
+Plot ACF and PACF to identify potential AR and MA model
+```{r fig.height=3, fig.width=8}
+par(mfrow = c(1,2))
+acf(na.omit(diff(pm25_xts)),main='pm25')
+pacf(na.omit(diff(pm25_xts)),main='pm25')
+```
+```{r}
+# try decompose func on the ts
+decompose(pm25_xts_sma) # runs into error, no or less than 2 periods
+```
+
+Identification of best fit ARIMA model
+```{r}
+require(forecast)
+ARIMAfit <- auto.arima(pm25_xts, approximation=FALSE,trace=FALSE)
+summary(ARIMAfit)
+```
+Forecast pm2.5 using the best fit ARIMA model 
+https://stackoverflow.com/questions/7154133/plot-new-has-not-been-called-yet
+trouble shooting - run the lines together, select all lines and run ! solved
+```{r}
+pred.steps <- 48 # hours
+par(mfrow = c(1,1))
+pred <- predict(ARIMAfit, n.ahead = pred.steps)
+# pred
+# plot(pm25_xts,type='l', xlab = 'Hour', ylab = 'pm2.5 levels')
+# lines(pred$pred,col='blue')
+# lines(pred$pred+2*pred$se,col='orange')
+# lines(pred$pred-2*pred$se,col='orange')
+
+plot(x=c(1:pred.steps), y=pred$pred,col='blue')
+```
+Observe the ACF :
+```{r message=FALSE, warning=FALSE}
+library(fpp2)
+ggAcf(pm25_xts) +
+  ggtitle("pm2.5 concentration ACF profile")
+```
+To preidct the next hour pm2.5 concentration :
+```{r}
+ARIMAfit%>%forecast(h=72)%>%autoplot()
+```
+The Arima model is not that 'impressive', let's try ets model for the forecasting :
+```{r}
+pm25_xts%>%ets()%>% forecast(h=168) %>%autoplot()
+```
+```{r}
+checkresiduals(ARIMAfit)
+```
+```{r}
+# to use season arima on the pm2.5 xts
+library(astsa)
+
+```
+```{r}
+# try D=1, or seasonal=TRUE
+sarima.fit <- auto.arima(pm25_xts, D=1, seasonal=TRUE)
+summary(sarima.fit)
+```
+* it looks like there is no difference. it cannot tell the difference in a 'yearly' pattern; maybe too many points
+
+

@@ -1,0 +1,30 @@
+---
+title: "template_sarima"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+how to config a season arima
+https://stackoverflow.com/questions/37046275/is-there-a-way-to-force-seasonality-from-auto-arima
+```{r}
+library(forecast)
+set.seed(1)
+foo <- ts(rnorm(60),frequency=12)
+plot.ts(foo)
+```
+```{r}
+foo
+```
+
+
+```{r}
+auto.arima(foo)
+```
+```{r}
+# define D=1
+auto.arima(foo,D=1)
+```
+
