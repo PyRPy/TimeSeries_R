@@ -42,12 +42,13 @@ Check the data structure and plot it again
 str(pm25)
 
 ```
-Plot a shorter time frame (before 2011)
-```{r fig.height=10}
+Plot pm2.5 levels over time frame (year by year)
+```{r fig.height=10, message=FALSE}
 pm25 %>% ggplot(aes(x=time, y=pm2.5)) +
   geom_line()+
   ylab("pm2.5 mg/m3")+
   xlab("") + 
+  ylim(0, 1000)+
   ggtitle("PM2.5 Trend Over Time")+
   facet_wrap(~ year, nrow = 5, scales="free")
 ```
@@ -58,11 +59,8 @@ pm25_day <- pm25 %>%
   group_by(Time= cut(time, 'days')) %>% 
   summarise(pm2.5=mean(pm2.5))
   
-
-head(pm25_day)
-# qplot(x=pm25_day$Time, y=pm25_day$pm2.5)
 ```
-Plot the pm25 again, it shows the interval patterns over time
+Plot the pm25 again, it shows the interval patterns over time (daily)
 * after sampling the 'time' converted to 'factor', need to convert back to date, but first do the 'character' then 'date, it needs two steps.
 ```{r fig.height=10}
 pm25_day$Time <- as.Date(as.character(pm25_day$Time))
@@ -70,6 +68,7 @@ pm25_day %>% ggplot(aes(x=Time, y=pm2.5)) +
   geom_line()+
   ylab("pm2.5 mg/m3")+
   xlab("") + 
+  ylim(0, 500) +
   ggtitle("PM2.5 Trend Over Time")+
   facet_wrap(~ year(Time), nrow = 5, scales="free") # use 'lubricate' to extract year
 ```
@@ -90,11 +89,52 @@ sum(is.na(pm25_trend))
 Apply anomaly function 
 Reference : https://www.r-bloggers.com/anomaly-detection-in-r-2/
 ```{r}
+#Install the devtools package then github packages
+# install.packages("devtools")
+# install.packages("Rcpp")
+library(devtools)
+# install_github("petermeissner/wikipediatrend")
+# install_github("twitter/AnomalyDetection")
+library(AnomalyDetection)
+
 anomalies_pm25 <- AnomalyDetectionTs(pm25_trend, direction="pos", plot=TRUE)
 anomalies_pm25$plot
 ```
 ```{r}
-anomalies_pm25$anoms
+# number of anomaly points
+nrow(anomalies_pm25$anoms)
+
+# create a lable for outliers
+pm25_trend$outliers <- ifelse(pm25_trend$time %in% anomalies_pm25$anoms$timestamp, 1, 0)
+head(pm25_trend)
+```
+
+```{r}
+plot(pm25_trend$outliers) # not good result
+class(pm25_trend$time)
+class(anomalies_pm25$anoms$timestamp)
+```
+```{r}
+anomlies_points <- data.frame(time=anomalies_pm25$anoms$timestamp, 
+                              pm2.5=anomalies_pm25$anoms$anoms)
+
+head(anomlies_points)
+str(anomlies_points)
+pm25_trend2 <- pm25_trend %>% left_join(anomlies_points, by='time')
+head(pm25_trend2)
+pm25_trend2$outliers <- ifelse(is.na(pm25_trend2$pm2.5.y), 0, 1)  
+
+```
+Plot the trend again over the years with 'labled' outliers
+```{r fig.height=10, message=FALSE}
+pm25_trend2 %>% ggplot(aes(x=time, y=pm2.5.x)) +
+  geom_line()+
+  geom_point(aes(x=time, y=pm2.5.x, col=as.factor(outliers)), size=0.5) +
+  ylab("pm2.5 mg/m3")+
+  xlab("") + 
+  ylim(0, 1000)+
+  ggtitle("PM2.5 Trend Over Time")+
+  facet_wrap(~ year(time), nrow = 5, scales="free")
 ```
 
 
