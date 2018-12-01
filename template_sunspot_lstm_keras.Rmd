@@ -40,7 +40,8 @@ library(keras)
 ```{r}
 # The dataset, sunspot.month, is available for all of us (it ships with base R). It's a ts class (not tidy), so we'll convert to a tidy 
 # data set using the tk_tbl() function from timetk. We use this instead of as.tibble() from tibble to automatically preserve the time 
-# series index as a zoo yearmon index. Last, we'll convert the zoo index to date using lubridate::as_date() (loaded with tidyquant) and # then change to a tbl_time object to make time series operations easier.
+# series index as a zoo yearmon index. Last, we'll convert the zoo index to date using lubridate::as_date() (loaded with tidyquant) and
+# then change to a tbl_time object to make time series operations easier.
 sun_spots <- datasets::sunspot.month %>%
     tk_tbl() %>%
     mutate(index = as_date(index)) %>%
