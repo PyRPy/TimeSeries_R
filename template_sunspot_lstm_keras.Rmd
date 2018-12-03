@@ -464,4 +464,353 @@ ret %>%
     plot_prediction(id = split_id, alpha = 0.65) +
     theme(legend.position = "bottom")
 ```
+## 5.2 Backtesting The LSTM On All Eleven Samples
+### 5.2.1 Creating An LSTM Prediction Function
+```{r}
+predict_keras_lstm <- function(split, epochs = 300, ...) {
+    
+    lstm_prediction <- function(split, epochs, ...) {
+        
+        # 5.1.2 Data Setup
+        df_trn <- training(split)
+        df_tst <- testing(split)
+        
+        df <- bind_rows(
+            df_trn %>% add_column(key = "training"),
+            df_tst %>% add_column(key = "testing")
+        ) %>% 
+            as_tbl_time(index = index)
+        
+        # 5.1.3 Preprocessing
+        rec_obj <- recipe(value ~ ., df) %>%
+            step_sqrt(value) %>%
+            step_center(value) %>%
+            step_scale(value) %>%
+            prep()
+        
+        df_processed_tbl <- bake(rec_obj, df)
+        
+        center_history <- rec_obj$steps[[2]]$means["value"]
+        scale_history  <- rec_obj$steps[[3]]$sds["value"]
+        
+        # 5.1.4 LSTM Plan
+        lag_setting  <- 120 # = nrow(df_tst)
+        batch_size   <- 40
+        train_length <- 440
+        tsteps       <- 1
+        epochs       <- epochs
+        
+        # 5.1.5 Train/Test Setup
+        lag_train_tbl <- df_processed_tbl %>%
+            mutate(value_lag = lag(value, n = lag_setting)) %>%
+            filter(!is.na(value_lag)) %>%
+            filter(key == "training") %>%
+            tail(train_length)
+        
+        x_train_vec <- lag_train_tbl$value_lag
+        x_train_arr <- array(data = x_train_vec, dim = c(length(x_train_vec), 1, 1))
+        
+        y_train_vec <- lag_train_tbl$value
+        y_train_arr <- array(data = y_train_vec, dim = c(length(y_train_vec), 1))
+        
+        lag_test_tbl <- df_processed_tbl %>%
+            mutate(
+                value_lag = lag(value, n = lag_setting)
+            ) %>%
+            filter(!is.na(value_lag)) %>%
+            filter(key == "testing")
+        
+        x_test_vec <- lag_test_tbl$value_lag
+        x_test_arr <- array(data = x_test_vec, dim = c(length(x_test_vec), 1, 1))
+        
+        y_test_vec <- lag_test_tbl$value
+        y_test_arr <- array(data = y_test_vec, dim = c(length(y_test_vec), 1))
+                
+        # 5.1.6 LSTM Model
+        model <- keras_model_sequential()
 
+        model %>%
+            layer_lstm(units            = 50, 
+                       input_shape      = c(tsteps, 1), 
+                       batch_size       = batch_size,
+                       return_sequences = TRUE, 
+                       stateful         = TRUE) %>% 
+            layer_lstm(units            = 50, 
+                       return_sequences = FALSE, 
+                       stateful         = TRUE) %>% 
+            layer_dense(units = 1)
+        
+        model %>% 
+            compile(loss = 'mae', optimizer = 'adam')
+        
+        # 5.1.7 Fitting LSTM
+        for (i in 1:epochs) {
+            model %>% fit(x          = x_train_arr, 
+                          y          = y_train_arr, 
+                          batch_size = batch_size,
+                          epochs     = 1, 
+                          verbose    = 0, 
+                          shuffle    = FALSE)
+            
+            model %>% reset_states()
+            cat("Epoch: ", i)
+            
+        }
+        
+        # 5.1.8 Predict and Return Tidy Data
+        # Make Predictions
+        pred_out <- model %>% 
+            predict(x_test_arr, batch_size = batch_size) %>%
+            .[,1] 
+        
+        # Retransform values
+        pred_tbl <- tibble(
+            index   = lag_test_tbl$index,
+            value   = (pred_out * scale_history + center_history)^2
+        ) 
+        
+        # Combine actual data with predictions
+        tbl_1 <- df_trn %>%
+            add_column(key = "actual")
+        
+        tbl_2 <- df_tst %>%
+            add_column(key = "actual")
+        
+        tbl_3 <- pred_tbl %>%
+            add_column(key = "predict")
+        
+        # Create time_bind_rows() to solve dplyr issue
+        time_bind_rows <- function(data_1, data_2, index) {
+            index_expr <- enquo(index)
+            bind_rows(data_1, data_2) %>%
+                as_tbl_time(index = !! index_expr)
+        }
+        
+        ret <- list(tbl_1, tbl_2, tbl_3) %>%
+            reduce(time_bind_rows, index = index) %>%
+            arrange(key, index) %>%
+            mutate(key = as_factor(key))
+
+        return(ret)
+        
+    }
+    
+    safe_lstm <- possibly(lstm_prediction, otherwise = NA)
+    
+    safe_lstm(split, epochs, ...)
+    
+}
+```
+* We can test the custom predict_keras_lstm() function out with 10 epochs. 
+```{r}
+predict_keras_lstm(split, epochs = 10)
+```
+### 5.2.2 Mapping The LSTM Prediction Function Over The 11 Samples
+```{r}
+# With the predict_keras_lstm() function in hand that works on one split, we can now map to all samples using a mutate() and map() combo. The predictions will be stored in a "list" column called "predict".
+sample_predictions_lstm_tbl <- rolling_origin_resamples %>%
+     mutate(predict = map(splits, predict_keras_lstm, epochs = 300))
+```
+* We now have the predictions in the column "predict" for all 11 splits!.
+```{r}
+sample_predictions_lstm_tbl
+```
+### 5.2.3 Assessing The Backtested Performance
+* this part does not work as what blog showed; need further attention
+```{r}
+# We can assess the RMSE by mapping the calc_rmse() function to the "predict" column.
+sample_rmse_tbl <- sample_predictions_lstm_tbl %>%
+    mutate(rmse = map_dbl(predict, calc_rmse)) %>%
+    select(id, rmse)
+
+sample_rmse_tbl
+```
+```{r}
+sample_rmse_tbl %>%
+    ggplot(aes(rmse)) +
+    geom_histogram(aes(y = ..density..), fill = palette_light()[[1]], bins = 16) +
+    geom_density(fill = palette_light()[[1]], alpha = 0.5) +
+    theme_tq() +
+    ggtitle("Histogram of RMSE")
+```
+```{r}
+sample_rmse_tbl %>%
+    summarize(
+        mean_rmse = mean(rmse),
+        sd_rmse   = sd(rmse)
+    )
+```
+### 5.2.4 Visualizing The Backtest Results
+```{r}
+plot_predictions <- function(sampling_tbl, predictions_col, 
+                             ncol = 3, alpha = 1, size = 2, base_size = 14,
+                             title = "Backtested Predictions") {
+    
+    predictions_col_expr <- enquo(predictions_col)
+    
+    # Map plot_split() to sampling_tbl
+    sampling_tbl_with_plots <- sampling_tbl %>%
+        mutate(gg_plots = map2(!! predictions_col_expr, id, 
+                               .f        = plot_prediction, 
+                               alpha     = alpha, 
+                               size      = size, 
+                               base_size = base_size)) 
+    
+    # Make plots with cowplot
+    plot_list <- sampling_tbl_with_plots$gg_plots 
+    
+    p_temp <- plot_list[[1]] + theme(legend.position = "bottom")
+    legend <- get_legend(p_temp)
+    
+    p_body  <- plot_grid(plotlist = plot_list, ncol = ncol)
+    
+    
+    
+    p_title <- ggdraw() + 
+        draw_label(title, size = 18, fontface = "bold", colour = palette_light()[[1]])
+    
+    g <- plot_grid(p_title, p_body, legend, ncol = 1, rel_heights = c(0.05, 1, 0.05))
+    
+    return(g)
+    
+}
+```
+```{r}
+sample_predictions_lstm_tbl %>%
+    plot_predictions(predictions_col = predict, alpha = 0.5, size = 1, base_size = 10,
+                     title = "Keras Stateful LSTM: Backtested Predictions")
+```
+## 5.3 Predicting The Next 10 Years
+```{r}
+# We can predict the next 10 years by adjusting the prediction function to work with the full data set. 
+predict_keras_lstm_future <- function(data, epochs = 300, ...) {
+    
+    lstm_prediction <- function(data, epochs, ...) {
+        
+        # 5.1.2 Data Setup (MODIFIED)
+        df <- data
+        
+        # 5.1.3 Preprocessing
+        rec_obj <- recipe(value ~ ., df) %>%
+            step_sqrt(value) %>%
+            step_center(value) %>%
+            step_scale(value) %>%
+            prep()
+        
+        df_processed_tbl <- bake(rec_obj, df)
+        
+        center_history <- rec_obj$steps[[2]]$means["value"]
+        scale_history  <- rec_obj$steps[[3]]$sds["value"]
+        
+        # 5.1.4 LSTM Plan
+        lag_setting  <- 120 # = nrow(df_tst)
+        batch_size   <- 40
+        train_length <- 440
+        tsteps       <- 1
+        epochs       <- epochs
+        
+        # 5.1.5 Train Setup (MODIFIED)
+        lag_train_tbl <- df_processed_tbl %>%
+            mutate(value_lag = lag(value, n = lag_setting)) %>%
+            filter(!is.na(value_lag)) %>%
+            tail(train_length)
+        
+        x_train_vec <- lag_train_tbl$value_lag
+        x_train_arr <- array(data = x_train_vec, dim = c(length(x_train_vec), 1, 1))
+        
+        y_train_vec <- lag_train_tbl$value
+        y_train_arr <- array(data = y_train_vec, dim = c(length(y_train_vec), 1))
+        
+        x_test_vec <- y_train_vec %>% tail(lag_setting)
+        x_test_arr <- array(data = x_test_vec, dim = c(length(x_test_vec), 1, 1))
+                
+        # 5.1.6 LSTM Model
+        model <- keras_model_sequential()
+
+        model %>%
+            layer_lstm(units            = 50, 
+                       input_shape      = c(tsteps, 1), 
+                       batch_size       = batch_size,
+                       return_sequences = TRUE, 
+                       stateful         = TRUE) %>% 
+            layer_lstm(units            = 50, 
+                       return_sequences = FALSE, 
+                       stateful         = TRUE) %>% 
+            layer_dense(units = 1)
+        
+        model %>% 
+            compile(loss = 'mae', optimizer = 'adam')
+        
+        # 5.1.7 Fitting LSTM
+        for (i in 1:epochs) {
+            model %>% fit(x          = x_train_arr, 
+                          y          = y_train_arr, 
+                          batch_size = batch_size,
+                          epochs     = 1, 
+                          verbose    = 1, 
+                          shuffle    = FALSE)
+            
+            model %>% reset_states()
+            cat("Epoch: ", i)
+            
+        }
+        
+        # 5.1.8 Predict and Return Tidy Data (MODIFIED)
+        # Make Predictions
+        pred_out <- model %>% 
+            predict(x_test_arr, batch_size = batch_size) %>%
+            .[,1] 
+        
+        # Make future index using tk_make_future_timeseries()
+        idx <- data %>%
+            tk_index() %>%
+            tk_make_future_timeseries(n_future = lag_setting)
+        
+        # Retransform values
+        pred_tbl <- tibble(
+            index   = idx,
+            value   = (pred_out * scale_history + center_history)^2
+        )
+        
+        # Combine actual data with predictions
+        tbl_1 <- df %>%
+            add_column(key = "actual")
+
+        tbl_3 <- pred_tbl %>%
+            add_column(key = "predict")
+
+        # Create time_bind_rows() to solve dplyr issue
+        time_bind_rows <- function(data_1, data_2, index) {
+            index_expr <- enquo(index)
+            bind_rows(data_1, data_2) %>%
+                as_tbl_time(index = !! index_expr)
+        }
+
+        ret <- list(tbl_1, tbl_3) %>%
+            reduce(time_bind_rows, index = index) %>%
+            arrange(key, index) %>%
+            mutate(key = as_factor(key))
+
+        return(ret)
+        
+    }
+    
+    safe_lstm <- possibly(lstm_prediction, otherwise = NA)
+    
+    safe_lstm(data, epochs, ...)
+    
+}
+```
+* Next, run predict_keras_lstm_future() on the sun_spots data set.
+```{r}
+future_sun_spots_tbl <- predict_keras_lstm_future(sun_spots, epochs = 300)
+```
+* Last, we can visualize the forecast with the plot_prediction() function, setting id = NULL. We can use filter_time() to zoom in on the dataset since 1900.
+```{r}
+future_sun_spots_tbl %>%
+    filter_time("1900" ~ "end") %>%
+    plot_prediction(id = NULL, alpha = 0.4, size = 1.5) +
+    theme(legend.position = "bottom") +
+    ggtitle("Sunspots: Ten Year Forecast", subtitle = "Forecast Horizon: 2013 - 2023")
+```
+* not sure the cross validation methods introduced here is suitable for the LSMT model which is aimed at the 'long' and 'short' memories without 'breaks', which is 'splitted' in this examples. But overall the author's ideas are impressive and explorative, worth thinking !
