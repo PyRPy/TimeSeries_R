@@ -1,0 +1,75 @@
+---
+title: "template_dl_ts_forecast"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Source of code :
+https://www.r-bloggers.com/deep-learning-for-time-series-forecasting-predicting-sunspot-frequency-with-keras/
+
+## Forecasting sunspots with deep learning
+
+## Setup, pre-processing, and exploration 
+```{r message=FALSE, warning=FALSE}
+# Core Tidyverse
+library(tidyverse)
+library(glue)
+library(forcats)
+
+# Time Series
+library(timetk)
+library(tidyquant)
+library(tibbletime)
+
+# Visualization
+library(cowplot)
+
+# Preprocessing
+library(recipes)
+
+# Sampling / Accuracy
+library(rsample)
+library(yardstick) 
+
+# Modeling
+library(keras)
+library(tfruns)
+# If you have not previously run Keras in R, you will need to install Keras using the install_keras() function.
+# Install Keras if you have not installed before
+## install_keras()
+```
+### Data
+```{r}
+sun_spots <- datasets::sunspot.month %>%
+    tk_tbl() %>%
+    mutate(index = as_date(index)) %>%
+    as_tbl_time(index = index)
+
+sun_spots
+```
+### Exploratory data analysis
+```{r}
+p1 <- sun_spots %>%
+    ggplot(aes(index, value)) +
+    geom_point(color = palette_light()[[1]], alpha = 0.5) +
+    theme_tq() +
+    labs(title = "From 1749 to 2013 (Full Data Set)")
+
+p2 <- sun_spots %>%
+    filter_time("start" ~ "1800") %>%
+    ggplot(aes(index, value)) +
+    geom_line(color = palette_light()[[1]], alpha = 0.5) +
+    geom_point(color = palette_light()[[1]]) +
+    geom_smooth(method = "loess", span = 0.2, se = FALSE) +
+    theme_tq() +
+    labs(title = "1749 to 1759 (Zoomed In To Show Changes over the Year)",
+        caption = "datasets::sunspot.month")
+
+p_title <- ggdraw() + 
+    draw_label("Sunspots", size = 18, fontface = "bold", colour = palette_light()[[1]])
+
+plot_grid(p_title, p1, p2, ncol = 1, rel_heights = c(0.1, 1, 1))
+```
+
