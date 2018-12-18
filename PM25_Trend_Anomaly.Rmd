@@ -136,5 +136,16 @@ pm25_trend2 %>% ggplot(aes(x=time, y=pm2.5.x)) +
   ggtitle("PM2.5 Trend Over Time")+
   facet_wrap(~ year(time), nrow = 5, scales="free")
 ```
-
+# Use AnomalyDetectionVec
+```{r}
+pm25_ad <- AnomalyDetectionVec(x=pm25_trend$pm2.5, period = 8760, direction = 'both', plot=T)
+pm25_ad$plot
+```
+# number of amomaly points
+```{r}
+nrow(pm25_ad$anoms)
+head(pm25_ad$anoms)
+nrow(pm25_ad$anoms)/nrow(pm25_trend) # same as on the plot
+```
+# it looks like from October to March next year, every year, during which the 'unsual' spikes of the pm25 levels are most likely to happen.
 
