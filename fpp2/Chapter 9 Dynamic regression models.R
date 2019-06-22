@@ -81,6 +81,7 @@ for (i in seq(6)){
                     seasonal = FALSE, lambda = 0)
   plots[[i]] <- autoplot(forecast(fit,
                     xreg=fourier(cafe04, K=i, h=24))) +
+                    xlab(paste("K=",i,"   AICC=",round(fit[["aicc"]],2))) +
                     ylab("") +
                     ylim(1.5, 4.7)
   
