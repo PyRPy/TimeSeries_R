@@ -185,3 +185,24 @@ cafe.test <- Arima(test, model=cafe.train)
 accuracy(cafe.test)
 
 # 12.9 Dealing with missing values and outliers
+# The gold data contains daily morning gold prices from 1 January 1985 to 31 March 
+# 1989. This series was provided to us as part of a consulting project; it contains 
+# 34 missing values as well as one apparently incorrect value. 
+
+gold2 <- na.interp(gold)
+autoplot(gold2, series="Interpolated") +
+  autolayer(gold, series="Original") +
+  scale_colour_manual(
+    values=c(`Interpolated`="red",`Original`="gray"))
+
+# More sophisticated missing value interpolation is provided in the imputeTS 
+# package.
+
+# Outliers
+tsoutliers(gold)
+gold[768:772]
+gold %>%
+  tsclean() %>%
+  ets() %>%
+  forecast(h=50) %>%
+  autoplot()
