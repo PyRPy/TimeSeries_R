@@ -1,0 +1,165 @@
+---
+title: "Import finanical data"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r message=FALSE}
+library(TTR)
+library(xts)
+library(quantmod)
+library(fpp2)
+# not working anymore
+# library(quantstrat)
+# library(blotter)
+
+```
+## Quantmod
+```{r}
+getSymbols(Symbols = "AAPL", src = "yahoo")
+getSymbols("AAPL")
+```
+```{r}
+head(AAPL)
+```
+```{r}
+# ts.plot(AAPL$AAPL.Close)
+```
+```{r}
+str(AAPL)
+```
+```{r}
+autoplot(AAPL$AAPL.Close)
+```
+
+
+## Quandl
+```{r}
+library(Quandl)
+```
+```{r}
+quantmod::getSymbols(Symbols = "DGS10", src = "FRED")
+```
+```{r}
+dgs10 <- Quandl::Quandl(code = "FRED/DGS10")
+```
+```{r}
+dgs10 <- Quandl::Quandl(code = "FRED/DGS10", type = "xts")
+# ts.plot(dgs10)
+```
+```{r}
+autoplot(dgs10)
+```
+
+## Finding data from internet sources
+* Yahoo finance
+* google finance
+* Oanda
+* FRED
+
+## Extracting columns from financial time series
+
+```{r}
+head(AAPL)
+```
+```{r}
+apple_open <- Op(AAPL)
+head(apple_open)
+```
+```{r}
+apple_high <- Hi(AAPL)
+head(apple_high)
+```
+
+```{r}
+apple_ohlc <- OHLC(AAPL)
+head(apple_ohlc)
+```
+```{r}
+autoplot(apple_ohlc)
+```
+
+## Transforming multiple instruments
+```{r}
+data_env <- new.env()
+getSymbols(c("SPY", "GE"), env = data_env, auto.assign = TRUE)
+```
+```{r}
+head(data_env$GE)
+```
+```{r}
+autoplot(Cl(data_env$GE))
+```
+
+
+```{r}
+# use lapply
+adjusted_list <- lapply(data_env, Ad)
+# adjusted <- do.all(merge, adjusted_list)
+```
+## setting default arguments for getSymbols
+```{r}
+getSymbols("GDP", src = "FRED")
+```
+```{r}
+autoplot(GDP)
+```
+```{r}
+# getSymbols.FRED("GDP")
+```
+```{r}
+gdp <- getSymbols("GDP", src = "FRED", auto.assign = FALSE)
+str(gdp)
+```
+```{r}
+getSymbols("NKE", from = "2019-01-01", src = "yahoo")
+```
+```{r}
+autoplot(Cl(NKE))
+```
+
+## set per-instrument default arguments
+```{r}
+aapl <- getSymbols("AAPL", auto.assign = FALSE, src = "yahoo")
+str(aapl)
+```
+## import invalid names
+```{r}
+getSymbols("^GSPC")
+```
+```{r}
+head(GSPC)
+```
+```{r}
+getSymbols("000001.SS", auto.assign = TRUE)
+```
+```{r}
+head(`000001.SS`, n = 3)
+```
+
+```{r}
+head(get("000001.SS"), n = 3)
+```
+```{r}
+sse <- getSymbols("000001.SS", auto.assign = FALSE)
+colnames(sse) <- paste("SSE", c("Open", "High", "Low", "Close", "Volume",
+                                "Adjusted"), sep = ".")
+```
+```{r}
+head(sse, n = 3)
+```
+## multiple instruments
+
+```{r}
+setSymbolLookup(SSE = list(name = "000001.SS"),
+                FORD = list(name = "F"))
+getSymbols(c("SSE", "FORD"))
+```
+```{r}
+autoplot(Cl(FORD))
+```
+
