@@ -162,4 +162,17 @@ getSymbols(c("SSE", "FORD"))
 ```{r}
 autoplot(Cl(FORD))
 ```
+## making irregular data regular
+```{r}
+# regular data time squences
+from_date <- as.Date("2017-01-01")
+to_date <- as.Date("2017-01-03")
+date_seq <- seq(from = from_date,
+                to = to_date,
+                by = "day")
+```
+```{r}
+regular_xts <- xts(seq_along(date_seq), order.by = date_seq)
+start(regular_xts)
+```
 
