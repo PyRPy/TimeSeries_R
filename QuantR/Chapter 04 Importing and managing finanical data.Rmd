@@ -176,3 +176,27 @@ regular_xts <- xts(seq_along(date_seq), order.by = date_seq)
 start(regular_xts)
 ```
 
+## 4.5 Importing text files
+```{r}
+getSymbols("GE", src = "csv", dir = "~/DataAnalysis_H/Examples_R/QuantR/Data/Stocks")
+```
+```{r}
+head(GE, 3)
+```
+```{r}
+# use zoo format
+ge_zoo <- read.zoo("~/DataAnalysis_H/Examples_R/QuantR/Data/Stocks/GE.csv",
+                   sep = ",", header = TRUE)
+```
+```{r}
+head(ge_zoo)
+```
+```{r}
+plot(ge_zoo$Close, main = "in the past year")
+```
+
+```{r}
+# any missing values
+sum(is.na(ge_zoo))
+```
+
