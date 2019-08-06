@@ -23,7 +23,7 @@ barplot(weights)
 
 * Portfolio return is a 'weighted' return of a group of stocks.
 
-### Performance analytics
+### 10.2 Performance analytics
 ```{r}
 # read data
 getSymbols("SPY", src = "yahoo")
@@ -100,4 +100,33 @@ skewness(sp500_monthly)
 kurtosis(sp500_monthly
          )
 ```
+```{r}
+# semi dev
+SemiDeviation(Cl(sp500_monthly))
+```
+```{r}
+# value at risk
+VaR(sp500_monthly$SPY.Close, p = 0.05)
+```
+```{r}
+ES(sp500_monthly$SPY.Close, p = 0.05)
+```
+```{r}
+# drawdowns
 
+```
+
+```{r}
+chart.Drawdown(sp500_2018)
+```
+
+### 10.3 Drivers in the case of two assets
+
+```{r}
+# Driver 1 : assets individual performance
+# Driver 2 : choice of portfolio weights
+# Driver 3 : correlation between asset returns
+
+```
+
+### 10.4 Modern Portfolio Theory
