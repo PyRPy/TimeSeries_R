@@ -130,3 +130,91 @@ chart.Drawdown(sp500_2018)
 ```
 
 ### 10.4 Modern Portfolio Theory
+
+### Introduction to PortfolioAnalytics
+* March 29, 2014, By Ross
+https://www.r-bloggers.com/introduction-to-portfolioanalytics/
+
+```{r}
+library(PortfolioAnalytics)
+data("edhec")
+str(edhec)
+```
+```{r}
+returns <- edhec[, 1:6]
+funds <- colnames(returns)
+```
+
+```{r}
+# create a portfolio object with portfolio.spec
+init.portfolio <- portfolio.spec(assets = funds)
+```
+
+```{r}
+print.default(init.portfolio)
+```
+```{r}
+#  add the full investment constraint
+init.portfolio <- add.constraint(portfolio = init.portfolio, 
+                                 type = "full_investment")
+```
+```{r}
+# add box constraint to specify a long only portfolio
+init.portfolio <- add.constraint(portfolio = init.portfolio, type = "long_only")
+```
+
+
+
+```{r}
+# Add objective for portfolio to minimize portfolio standard deviation
+minSD.portfolio <- add.objective(portfolio=init.portfolio, 
+                                 type="risk", 
+                                 name="StdDev")
+
+```
+```{r}
+# Add objectives for portfolio to maximize mean per unit ES
+meanES.portfolio <- add.objective(portfolio=init.portfolio, 
+                                  type="return", 
+                                  name="mean")
+
+meanES.portfolio <- add.objective(portfolio=meanES.portfolio, 
+                                  type="risk", 
+                                  name="ES")
+```
+```{r}
+print(minSD.portfolio)
+```
+```{r}
+# Run the optimization for the minimum standard deviation portfolio
+minSD.opt <- optimize.portfolio(R = returns, 
+                                portfolio = minSD.portfolio,
+                                optimize_method = "ROI", 
+                                trace = TRUE)
+
+print(minSD.opt)
+```
+```{r}
+# Run the optimization for the maximize mean per unit ES
+meanES.opt <- optimize.portfolio(R = returns, 
+                                 portfolio = meanES.portfolio,
+                                 optimize_method = "ROI", 
+                                 trace = TRUE)
+
+print(meanES.opt)
+```
+```{r}
+# a plot of of the optimal weights and the optimal 
+# portfolio in risk-return space
+plot(minSD.opt, risk.col="StdDev", chart.assets=TRUE, 
+     main="Min SD Optimization",
+     ylim=c(0, 0.0083), xlim=c(0, 0.06))
+
+
+```
+```{r}
+plot(meanES.opt, chart.assets=TRUE, 
+     main="Mean ES Optimization",
+     ylim=c(0, 0.0083), xlim=c(0, 0.16))
+```
+
