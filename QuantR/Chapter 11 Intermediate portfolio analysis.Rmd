@@ -1,0 +1,179 @@
+---
+title: "Chapter 11 Intermediate portfolio analysis"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+### 11.1 Modern portfolio theory
+```{r}
+library(PortfolioAnalytics)
+data(edhec)
+data <- edhec[, 1:8]
+```
+#### Mean - standard deviation example - setup
+```{r}
+# specification
+port_spec <- portfolio.spec(colnames(data))
+
+port_spec <- add.constraint(portfolio = port_spec,
+                            type = "full_investment")
+port_spec <- add.constraint(portfolio = port_spec,
+                            type = "long_only")
+port_spec <- add.constraint(portfolio = port_spec,
+                            type = "full_investment")
+port_spec <- add.objective(portfolio = port_spec,
+                            type = "return",
+                            name = "mean")
+port_spec <- add.objective(portfolio = port_spec,
+                            type = "risk",
+                            name = "StdDev")
+
+print(port_spec)
+```
+
+#### Mean - standard deviation example - optimize
+```{r}
+# run optimization and chart results in risk-reward space
+opt <- optimize.portfolio(data, portfolio = port_spec,
+                          optimize_method = "random",
+                          trace = TRUE)
+
+chart.RiskReward(opt, risk.col = "StdDev",
+                 return.col = "mean",
+                 chart.assets = TRUE)
+```
+
+#### challenges of portfolio optimization
+* Quadratic programming solver
+```{r}
+# load quadprog
+library(quadprog)
+data(edhec)
+dat <- edhec[, 1:4]
+```
+```{r}
+# constraint matrix
+Amat <- cbind(1, diag(ncol(dat)), -diag(ncol(dat)))
+
+# constriant vector
+bvec <- c(1, rep(0, ncol(dat)), -rep(1, ncol(dat)))
+
+# objective matrix
+Dmat <- 10 * cov(dat)
+
+# objective vector
+dvec <- colMeans(dat)
+
+# number of equality constraints
+meq <- 1
+
+# solve the opt problem
+opt <- solve.QP(Dmat, dvec, Amat, bvec, meq)
+```
+```{r}
+print(opt)
+```
+### 11.2 Portfolio spec, constraints, objectives
+* work flow - spec
+```{r}
+# vector of assets
+portfolio.spec(assets = c("SP500,", "DJIA", "Nasdaq",
+                          "FTSE100", "DAX", "CAC40"))
+```
+```{r}
+# named vector of assets with weights
+initial_weights <- c("SP500" = 0.5, "FTSE100" = 0.3, "NIKKEI" = 0.2)
+
+portfolio.spec(assets = initial_weights)
+```
+```{r}
+# scalar of number of assets
+portfolio.spec(assets = 4)
+```
+
+* workflow - add constraints
+```{r}
+# initialize portfolio specs
+p <- portfolio.spec(assets = 4)
+
+# add full investment constraint
+p <- add.constraint(portfolio = p, type = "weight_sum",
+                    min_sum = 1, max_sum = 1)
+
+# add box constraint
+p <- add.constraint(portfolio = p, type = "box",
+                    min = 0.2, max = 0.6)
+```
+
+* workflow - add objectives
+```{r}
+p <- add.objective(portfolio = p, type = "return",
+                   name = "mean")
+
+p <- add.objective(portfolio = p, type = "risk", name = "ES",
+                   arguments = list(p = 0.9, method = "gaussian"))
+```
+#### running optimization
+```{r}
+ret <- edhec[, 1:6]
+head(ret, n = 3)
+```
+```{r}
+# specification
+p <- portfolio.spec(colnames(ret))
+
+p <- add.constraint(portfolio = p,
+                            type = "full_investment")
+p <- add.constraint(portfolio = p,
+                            type = "long_only")
+p <- add.constraint(portfolio = p,
+                            type = "full_investment")
+
+p <- add.objective(portfolio = p,
+                            type = "risk",
+                            name = "StdDev")
+
+```
+```{r}
+# optimization
+opt_single <- optimize.portfolio(R = ret, 
+                                 portfolio = p,
+                                 optimize_method = "ROI")
+
+opt_rebal <- optimize.portfolio.rebalancing(R = ret,
+                                            portfolio = p,
+                                            optimize_method = "ROI",
+                                            rebalance_on = "years",
+                                            training_period = 60,
+                                            rolling_window = 60)
+```
+
+* workflow - analyze results
+```{r}
+extractWeights(opt_single)
+```
+```{r}
+chart.Weights(opt_single)
+```
+```{r}
+chart.Weights(opt_rebal)
+```
+```{r}
+extractObjectiveMeasures(opt_single)
+```
+```{r}
+head(extractObjectiveMeasures(opt_rebal))
+```
+* workflow - optimization analysis
+```{r}
+rr <- Return.portfolio(ret, weights = extractWeights(opt_rebal))
+charts.PerformanceSummary(rr)
+```
+
+### 11.3 Moments
+```{r}
+
+```
+
