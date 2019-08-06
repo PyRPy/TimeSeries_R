@@ -1,0 +1,103 @@
+---
+title: "Chapter 10 Introduction to portfolio analysis"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(quantmod)
+library(PerformanceAnalytics)
+library(xts)
+```
+
+## 10.1 Portfolio weights and returns
+```{r}
+values <- c(500000, 200000, 100000, 20000)
+names(values) <- c("Inv 1", "Inv 2", "Inv 3", "Inv 4")
+weights <- values/(sum(values))
+
+barplot(weights)
+```
+
+* Portfolio return is a 'weighted' return of a group of stocks.
+
+### Performance analytics
+```{r}
+# read data
+getSymbols("SPY", src = "yahoo")
+
+```
+```{r}
+head(SPY)
+```
+
+
+```{r}
+# convert to monthly data
+sp500_monthly <- to.monthly(SPY)
+```
+```{r}
+# calculate returns
+sp500_return <- Return.calculate(sp500_monthly$SPY.Close)
+plot.zoo(sp500_return)
+```
+```{r}
+# year, month table
+table.CalendarReturns(sp500_return)
+```
+```{r}
+mean(sp500_return, na.rm = TRUE)
+```
+```{r}
+mean.geometric(sp500_return, na.rm = TRUE)
+```
+```{r}
+sd(sp500_return, na.rm = TRUE)
+```
+```{r}
+# annualized return mean
+Return.annualized(sp500_return, scale = 12) # specify scale
+```
+
+```{r}
+# annulized sd
+StdDev.annualized(sp500_return)
+```
+
+```{r}
+# annualized sharpe ratio
+ann_sharpe <- Return.annualized(sp500_return, scale = 12)/StdDev.annualized(sp500_return)
+ann_sharpe
+```
+```{r}
+table.AnnualizedReturns(sp500_return)
+```
+```{r}
+chart.RollingPerformance(R = sp500_return, scale = 12, width = 12, FUN = "Return.annualized")
+abline(h = 0.058)
+```
+
+```{r}
+chart.RollingPerformance(R = sp500_return, scale = 12, width = 12, FUN = "SharpeRatio.annualized")
+abline(h = ann_sharpe)
+```
+```{r}
+sp500_2010 <- window(sp500_return, start = "2010-01-01", end = "2010-12-31")
+sp500_2018 <- window(sp500_return, start = "2018-01-01", end = "2018-12-31")
+```
+```{r}
+par(mfrow = c(1, 2))
+chart.Histogram(sp500_2010, methods = c("add.density", "add.normal"))
+chart.Histogram(sp500_2018, methods = c("add.density", "add.normal"))
+```
+```{r}
+# balance risk and skewness
+skewness(sp500_monthly)
+```
+```{r}
+kurtosis(sp500_monthly
+         )
+```
+
