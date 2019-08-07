@@ -1,0 +1,182 @@
+---
+title: "Chapter 15 Financial Trading"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## 10.1 ETFs, data from quandmod
+```{r}
+library(quantmod)
+library(TTR)
+
+```
+```{r}
+# get LQD
+getSymbols("LQD", from = "1990-01-01", src = "yahoo", adjusted = TRUE)
+```
+```{r}
+# plot data
+plot(Cl(LQD))
+```
+
+```{r}
+# moving average across 200 days
+sma <- SMA(x = Cl(LQD), n = 200)
+
+# plot SMA line and LQD line together
+plot(Cl(LQD))
+lines(sma, col = "red")
+```
+
+```{r}
+getSymbols("AAPL", src = "yahoo")
+```
+```{r}
+plot(Cl(AAPL))
+sma_apple <- SMA(x = Cl(AAPL), n = 200)
+lines(sma_apple, col = "red")
+```
+
+## 15.2 Setting up a strategy I
+```{r}
+# https://stackoverflow.com/questions/43602829/installing-blotter-and-quantstrat-on-github
+# install.packages("remotes")
+# remotes::install_github("braverock/blotter")
+# remotes::install_github("braverock/quantstrat")
+```
+```{r}
+library(quantstrat)
+```
+```{r}
+# initiate, from and to
+
+initdate <- "1999-01-01"
+from <- "2003-01-01"
+to <- "2015-12-31"
+
+# set time zone
+Sys.setenv(TZ = "UTC")
+
+# currency USD
+currency("USD")
+```
+
+```{r}
+# get SPY
+getSymbols("SPY", from = from, to = to, src = "yahoo", adjust = TRUE)
+```
+```{r}
+# set currency
+stock("SPY", currency = "USD")
+```
+```{r}
+# trade size
+tradesize <- 100000
+initeq <- 100000
+
+# def names of strategies, port, account
+strategy.st <- "firststrat"
+portfolio.st <- "firststrat"
+account.st <- "firststrat"
+
+# clear existing strategy
+rm.strat(strategy.st)
+```
+
+```{r}
+# initialize portfolio
+initPortf(portfolio.st, symbols = "SPY", initDate = initdate, currency = "USD" )
+```
+```{r}
+# initiate account
+initAcct(account.st, portfolios = portfolio.st, initDate = initdate, currency = "USD", initEq = initeq)
+```
+```{r}
+# init orders
+initOrders(portfolio.st, initDate = initdate)
+```
+
+```{r}
+# store strategy
+strategy(strategy.st, store = TRUE)
+```
+
+## 15.3 Indicators
+```{r}
+# SMA and RSI func
+spy_sma <- SMA(x = Cl(SPY), n = 200)
+
+spy_rsi <- RSI(price = Cl(SPY), n = 3)
+```
+```{r}
+plot(Cl(SPY))
+lines(spy_sma, col="red")
+```
+
+```{r}
+# RSI 2
+plot(Cl(window(SPY, start = "2015-01-01")))
+plot(RSI(Cl(window(SPY, start = "2015-01-01")), n = 2), col = "red")
+```
+
+```{r}
+# add a 200day SMA indicator to strategy.st
+add.indicator(strategy = strategy.st,
+              name = "SMA",
+              arguments = list(x = quote(CL(mktdata)), n = 200),
+              label = "SMA200")
+```
+```{r}
+# add a 50day SMA indicator to strategy.st
+add.indicator(strategy = strategy.st,
+              name = "SMA",
+              arguments = list(x = quote(CL(mktdata)), n = 50),
+              label = "SMA50")
+```
+```{r}
+# add a 5RSI indicator to strategy.st
+add.indicator(strategy = strategy.st,
+              name = "RSI",
+              arguments = list(x = quote(CL(mktdata)), n = 3),
+              label = "RSI_3")
+```
+```{r}
+# write function
+RSI_avg <- function(price, n1, n2){
+  rsi_1 <- RSI(price = price, n = n1)
+  rsi_2 <- RSI(price = price, n = n2)
+  RSI_avg <- (rsi_1 + rsi_2)/2
+  colnames(RSI_avg) <- "RSI_avg"
+  return(RSI_avg)
+}
+```
+
+```{r}
+# add function
+add.indicator(strategy.st, name = "RSI_avg", arguments = list(price = quote(Cl(mktdata)), n1 = 3, n2 = 4, label = "RSI_3_4"))
+```
+```{r}
+# DVO func
+DVO <- function(HLC, navg = 2, percentlookback = 126){
+  ratio <- Cl(HLC)/((Hi(HLC) + Lo(HLC))/2)
+  avgratio <- SMA(ratio, n = navg)
+  out <- runPercentRank(avgratio, n = percentlookback, exact.multiplier = 1) * 100
+  colnames(out) <- "DVO"
+  return(out)
+}
+```
+
+```{r}
+# add DVO to strategy
+add.indicator(strategy = strategy.st, name = "DVO",
+              arguments = list(HLC = quote(HLC(mktdata)), navg = 2, percentlookback = 126), label = "DVO_2_126")
+
+# test indicator
+test <- applyIndicators(strategy = strategy.st, mktdata = OHLC(SPY))
+
+# subset in 2013, sep 1 - 5
+test_subset <- test["2013-09-01/2013-09-05"]
+```
+
