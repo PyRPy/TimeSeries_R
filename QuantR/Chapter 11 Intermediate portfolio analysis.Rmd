@@ -128,8 +128,6 @@ p <- add.constraint(portfolio = p,
                             type = "full_investment")
 p <- add.constraint(portfolio = p,
                             type = "long_only")
-p <- add.constraint(portfolio = p,
-                            type = "full_investment")
 
 p <- add.objective(portfolio = p,
                             type = "risk",
@@ -174,6 +172,136 @@ charts.PerformanceSummary(rr)
 
 ### 11.3 Moments
 ```{r}
+# custom moment function
+library(MASS)
+data(edhec)
+asset_returns <- edhec[,1:4]
+port_spec <- portfolio.spec(assets = colnames(asset_returns))
+port_spec <- add.constraint(portfolio = port_spec,
+                            type = "full_investment")
+port_spec <- add.constraint(portfolio = port_spec, 
+                                  type = "long_only")
+port_spec <- add.objective(portfolio = port_spec,
+                           type = "risk",
+                           name = "StdDev")
+
+custom_fun <- function(R, portfolio, rob_method = "mcd"){
+  out <- list()
+  out$sigma <- cov.rob(R, method = rob_method)
+  return(out)
+}
+
+# passing rod_method argument to custom fun
+optimize.portfolio(R = asset_returns, portfolio = port_spec, momentFUN = custom_fun,
+                   rob_method = "mcd")
+
+optimize.portfolio(R = asset_returns, portfolio = port_spec, momentFUN = custom_fun,
+                   rob_method = "mve")
+```
+```{r}
+# custom objective function
 
 ```
 
+### 11.4 Examples
+* Benchmark
+```{r}
+data("indexes")
+returns <- indexes[, 1:4]
+```
+```{r}
+# equal weight benchmark
+n <- ncol(returns)
+equal_weights <- rep(1 / n, n)
+benchmark_returns <- Return.portfolio(R = returns,
+                                      weights = equal_weights,
+                                      rebalance_on = "years")
+
+colnames(benchmark_returns) <- "benchmark"
+```
+```{r}
+# benchmark performance
+table.AnnualizedReturns(benchmark_returns)
+```
+* Base portfolio definition
+```{r}
+base_port_spec <- portfolio.spec(assets = colnames(returns))
+base_port_spec <- add.constraint(portfolio = base_port_spec,
+                             type = "full_investment")
+base_port_spec <- add.constraint(portfolio = base_port_spec,
+                                 type = "long_only")
+base_port_spec <- add.objective(portfolio = base_port_spec,
+                                type = "risk",
+                                name = "StdDev")
+```
+
+* optimization backtest
+```{r}
+opt_base <- optimize.portfolio.rebalancing(R = returns,
+                                           optimize_method = "ROI",
+                                           portfolio = base_port_spec,
+                                           rebalance_on = "quarters",
+                                           training_period = 60,
+                                           rolling_window = 60
+                                           )
+
+# calculate portfolio returns
+base_returns <- Return.portfolio(returns,
+                                 extractWeights(opt_base))
+
+colnames(base_returns) <- "base"
+```
+* optimization backtest
+```{r}
+# chart the optimal weights
+chart.Weights(opt_base)
+```
+```{r}
+# merge benmark and portfolio returns
+ret <- cbind(benchmark_returns, base_returns)
+
+# annualized performance
+table.AnnualizedReturns(ret)
+
+```
+
+* refine constraints
+```{r}
+# backup of portfolio spec
+box_port_spec <- base_port_spec
+
+# update the constraint
+box_port_spec <- add.constraint(portfolio = box_port_spec,
+                                type = "box",
+                                min = 0.05,
+                                max = 0.4,
+                                indexnum = 2)
+```
+
+```{r}
+# backtesting
+opt_box <- optimize.portfolio.rebalancing(R = returns,
+                                          optimize_method = "ROI",
+                                          portfolio = box_port_spec,
+                                          rebalance_on = "quarters",
+                                          training_period = 60,
+                                          rolling_window = 60)
+# calculate portfolio returns
+box_returns <- Return.portfolio(returns, extractWeights(opt_box))
+colnames(box_returns) <- "box"
+
+```
+```{r}
+# chart the optimal weights
+chart.Weights(opt_box)
+```
+
+* analysis refined constraints
+```{r}
+# merge box port returns
+ret <- cbind(ret, box_returns)
+
+# annualized performance
+table.AnnualizedReturns(ret)
+```
+* no improvement using 'box' ?
