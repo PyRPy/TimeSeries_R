@@ -1,0 +1,119 @@
+---
+title: "Chapter 05 Introduction to time series analysis"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## 5.1 Examples
+```{r}
+head(sunspots)
+```
+```{r}
+# coredata(sunspots)
+# index(sunspots)
+plot(sunspots)
+```
+```{r}
+# sampling frequency : R function
+start(sunspots)
+```
+```{r}
+end(sunspots)
+```
+```{r}
+frequency(sunspots)
+```
+```{r}
+deltat(sunspots)
+```
+```{r}
+# building ts objects
+data_vector <- c(10, 6, 11, 8, 10, 3, 6, 9)
+time_series <- ts(data_vector)
+plot(time_series)
+```
+```{r}
+# more with start date
+time_series <- ts(data_vector, start = 2001, frequency = 1)
+plot(time_series)
+```
+```{r}
+is.ts(data_vector)
+```
+## 5.2 predicting the future
+```{r}
+dz <- diff(sunspots)
+ts.plot(dz)
+```
+```{r}
+ts.plot(diff(sunspots, lag = 50))
+```
+```{r}
+# while noise
+white_noise <- arima.sim(model = list(order = c(0,0,0)), n = 100)
+ts.plot(white_noise)
+```
+```{r}
+# white noise with more parameters
+white_noise_2 <- arima.sim(model = list(order = c(0,0,0)), n = 100,
+                         mean = 100, sd = 10)
+ts.plot(white_noise_2)
+```
+```{r}
+mean(white_noise_2)
+```
+```{r}
+var(white_noise_2)
+```
+```{r}
+# check on the white noise 2
+arima(white_noise_2, order = c(0,0,0))
+```
+```{r}
+# random walk
+random_walk <- arima.sim(model = list(order = c(0,1,0)), n = 100)
+ts.plot(random_walk)
+```
+```{r}
+# difference series
+random_walk_diff <- diff(random_walk)
+ts.plot(random_walk_diff)
+```
+```{r}
+# random walk with a drift
+rw_drift <- arima.sim(model = list(order = c(0,1,0)), 
+                      n = 100, mean = 1)
+ts.plot(rw_drift)
+```
+```{r}
+# difference again
+rw_drift_diff <- diff(rw_drift)
+ts.plot(rw_drift_diff)
+```
+```{r}
+# estimate the random work model
+rw_diff <- diff(random_walk)
+ts.plot(rw_diff)
+```
+```{r}
+# fit rw model to the differenced data
+model_wn <- arima(rw_diff, order = c(0,0,0))
+
+# store intercept
+int_wn <- model_wn$coef
+
+ts.plot(random_walk)
+abline(0, int_wn)
+```
+```{r}
+# white noise or random walk - stationary
+while_noise <- arima.sim(model = list(order = c(0,0,0)), n = 100)
+random_walk <- cumsum(white_noise)
+wn_drift <- arima.sim(model = list(order=c(0,0,0)), n = 100, mean = 0.4)
+rw_drfit <- cumsum(wn_drift)
+plot.ts(cbind(white_noise, random_walk, wn_drift, rw_drfit))
+```
+
+
