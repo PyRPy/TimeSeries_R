@@ -1,0 +1,102 @@
+---
+title: "Chapter 03 Manipulating Time series with xts and zoo"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 3.1 create, import and export time series
+```{r}
+x <- matrix(1:4, ncol = 2, nrow = 2)
+x
+```
+```{r}
+idx <- as.Date(c("2019-01-01", "2019-02-01"))
+idx
+```
+```{r}
+# an xts example
+X <- xts(x, order.by = idx)
+X
+```
+
+```{r}
+# xts constructor
+X <- xts(x, order.by = idx)
+X
+```
+```{r}
+# extract data
+coredata(X)
+```
+```{r}
+# extract index
+index(X)
+```
+```{r}
+# converting to xts
+data("sunspots")
+class(sunspots)
+```
+```{r}
+sunspots_xts <- as.xts(sunspots)
+class(sunspots_xts)
+```
+```{r}
+head(sunspots_xts)
+```
+```{r}
+# import, export
+# as.xts(read.table(...))
+# as.xts(read.zoo(...))
+# 
+# write.zoo(...)
+# saveRDS(...)
+```
+
+## 3.2 time based queries
+```{r}
+data(edhec, package = "PerformanceAnalytics")
+
+head(edhec["2007-01", 1])
+```
+```{r}
+head(edhec["200701/03", 1])
+```
+```{r}
+head(edhec["200701/200703", 1])
+```
+```{r}
+# time support
+library(zoo)
+library(xts)
+iday("20160809T1150")
+```
+
+```{r}
+# row selection with time
+X[c(1, 2), ]
+```
+```{r}
+# logic 
+X[index(X) > "2016-08-01"]
+```
+```{r}
+# date objects
+dates <- as.POSIXct(c("2019-01-01", "2019-02-01 "))
+X[dates]
+```
+```{r}
+# subsetting
+index <- X["2019-01-01/2019-02-01", which.i = TRUE]
+index
+```
+```{r}
+first(X)
+```
+```{r}
+last(X)
+```
+
