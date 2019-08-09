@@ -133,4 +133,58 @@ sarima(gnpgr, p = 0, d = 0, q = 2)
 # 4. Q-stat, all point below line
 ```
 
+## 6.3 ARIMA model
+```{r}
+# simulate ARIMA(1, 1, 0)
+x <- arima.sim(list(order = c(1, 1, 0), ar = 0.9), n = 200)
+plot(x, main = "ARIMA(1, 1, 0)")
+```
+```{r}
+plot(diff(x), main = "ARMA(1, 0, 0)")
+```
+```{r}
+# acf2
+acf2(x)
+```
+```{r}
+# ARIMA diagnostics
+oil <- window(oil, end = 2006)
+x <- sarima(oil, p = 1, d =1, q = 1)
+x$ttable
+```
+
+```{r}
+# overfitting ARIMA(2, 1, 1) or ARIMA(1, 1, 2)
+oil_fit1 <- sarima(oil, p = 2, d = 1, q = 1)
+oil_fit1$ttable
+```
+```{r}
+# overfitting ARIMA(2, 1, 1) or ARIMA(1, 1, 2)
+oil_fit2 <- sarima(oil, p = 1, d = 1, q = 2)
+oil_fit2$ttable
+```
+```{r}
+# forecasting with ARIMA
+oil <- window(astsa::oil, end = 2006)
+oilf <- window(astsa::oil, end = 2007)
+sarima.for(oil, n.ahead = 52, 1, 1, 1)
+lines(oilf)
+```
+
+## 6.4 seasonal models
+```{r}
+# mixed seasonal models
+airpass_fit1 <- sarima(log(AirPassengers), p = 1, d = 1, q = 1, 
+                       P = 0, D = 1, Q = 1, S = 12)
+airpass_fit1$ttable
+```
+```{r}
+airpass_fit2 <- sarima(log(AirPassengers), p = 0, d = 1, q = 1, 
+                       P = 0, D = 1, Q = 1, S = 12)
+airpass_fit2$ttable
+```
+```{r}
+# forecasting with Seasonal ARIMA
+sarima.for(log(AirPassengers), n.ahead = 24, 0, 1, 1, 0, 1, 1, 12)
+```
 
