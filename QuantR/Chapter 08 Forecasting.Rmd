@@ -1,0 +1,54 @@
+---
+title: "Chapter 08 Forecasting"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## 8.1 Inroduction
+```{r}
+library(fpp2)
+# white noise
+set.seed(3)
+wn <- ts(rnorm(36))
+autoplot(wn)
+```
+```{r}
+# ACF
+ggAcf(wn) +
+  ggtitle("Sample ACF for white noise")
+```
+```{r}
+# pigs slaugtered
+autoplot(pigs/1000) +
+  xlab("year") +
+  ylab("Thousands") +
+  ggtitle("Monthly number of pigs slightered in Victoria")
+```
+```{r}
+# ACF
+ggAcf(pigs) +
+  ggtitle("ACF of pigs sloughtered")
+```
+```{r}
+# Ljung-Box test
+# a small p-value indicates the data are probably not white noise !
+Box.test(pigs, lag = 24, fitdf = 0, type = "Lj")
+```
+```{r}
+# p-value large, so white noise ?
+Box.test(wn, type = "Lj")
+```
+
