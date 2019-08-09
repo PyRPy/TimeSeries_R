@@ -116,4 +116,148 @@ rw_drfit <- cumsum(wn_drift)
 plot.ts(cbind(white_noise, random_walk, wn_drift, rw_drfit))
 ```
 
+## 5.3 Correlation and plotting
+```{r}
+data("EuStockMarkets")
+eu_stocks <- EuStockMarkets
+plot(eu_stocks)
+```
+
+```{r}
+# return
+returns <- eu_stocks[-1, ]/eu_stocks[-1360, ] -1
+
+# to ts
+returns <- ts(returns, start = c(1991, 130), frequency = 260)
+
+# plot returns
+plot(returns)
+```
+
+```{r}
+# log returns
+logreturns <- diff(log(eu_stocks))
+plot(logreturns)
+```
+
+```{r}
+# percent returns
+eu_percentreturns <- returns*100
+
+colMeans(eu_percentreturns)
+```
+```{r}
+# sample variance
+apply(eu_percentreturns, MARGIN = 2, FUN = var)
+```
+```{r}
+# standard deviation
+apply(eu_percentreturns, 2, sd)
+```
+```{r}
+# plot histograms
+par(mfrow = c(2, 2))
+apply(eu_percentreturns, 2, hist, main = "", xlab = "Percentage Return")
+```
+
+```{r}
+# plot histograms
+par(mfrow = c(2, 2))
+apply(eu_percentreturns, 2, qqnorm, main = "")
+qqline(eu_percentreturns)
+```
+```{r}
+pairs(logreturns)
+```
+```{r}
+# covariance
+cov(logreturns)
+```
+```{r}
+# correlations
+cor(logreturns)
+```
+```{r}
+x <- eu_stocks[, "DAX"]
+x_t0 <- lag(x, n =10)
+plot(x, x_t0)
+```
+```{r}
+acf(x, lag.max = 1)
+```
+```{r}
+n = length(x)
+cor(x, x_t0) * (n - 1)/n
+```
+
+## 5.4 autoregressive model
+```{r}
+# inflation data
+data(Mishkin, package = "Ecdat")
+inflation <- as.ts(Mishkin[, 1])
+ts.plot(inflation)
+```
+```{r}
+acf(inflation)
+```
+```{r}
+# AR model
+AR_inflation <- arima(inflation, order = c(1, 0, 0))
+print(AR_inflation)
+```
+```{r}
+# fitted values
+ts.plot(inflation)
+
+AR_inflation_fitted <- inflation - residuals(AR_inflation)
+
+points(AR_inflation_fitted, type = "l", col = "red", lty = 2)
+```
+```{r}
+# forcasting
+predict(AR_inflation)
+```
+```{r}
+# h - steps
+predict(AR_inflation, n.ahead = 6)
+```
+
+## 5.5 Moving average model
+```{r}
+inflation_changes <- diff(inflation)
+par(mfrow = c(2, 1))
+ts.plot(inflation, xlab = "")
+ts.plot(inflation_changes, xlab = "")
+```
+```{r}
+acf(inflation_changes, lag.max = 24)
+```
+```{r}
+# MA processes
+MA_inflation_changes <- arima(inflation_changes, order = c(0, 0, 1)) 
+print(MA_inflation_changes)
+```
+
+```{r}
+# MA, fitted values
+ts.plot(inflation_changes)
+MA_inflation_changes_fitted <- inflation_changes - residuals(MA_inflation_changes)
+
+points(MA_inflation_changes_fitted, type = "l", col= "red", lty = 2)
+```
+```{r}
+# Forecasting
+predict(MA_inflation_changes, n.ahead = 6)
+```
+
+```{r}
+# compare AR and MA models
+AIC(MA_inflation_changes)
+BIC(MA_inflation_changes)
+```
+```{r}
+AR_inflation_changes <- arima(inflation_changes, order = c(1, 0, 0)) 
+AIC(AR_inflation_changes)
+BIC(AR_inflation_changes)
+```
 
