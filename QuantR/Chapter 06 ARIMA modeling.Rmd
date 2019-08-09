@@ -1,0 +1,136 @@
+---
+title: "Chapter 06 ARIMA modeling"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 6.1 Time series data and models
+```{r}
+# data - Johnson & Johnson
+library(astsa)
+plot(jj, main = "JJ quarterly earnings per share", type = "c")
+text(jj, labels = 1:4, col = 1:4)
+```
+
+```{r}
+# global temperature
+plot(globtemp, main = "Global temperature deviations", type = "o")
+```
+
+```{r}
+# S&P500
+library(xts)
+plot(sp500w, main = "S&P 500 weekly returns")
+```
+
+```{r}
+# generating MA(1)
+x <- arima.sim((list(order = c(0, 0, 1), ma = 0.9)), n = 100)
+plot(x)
+
+```
+
+```{r}
+# producting AR(2) data
+x <- arima.sim(list(order = c(2, 0, 0), ar = c(0, -0.9)), n = 100)
+plot(x)
+```
+```{r}
+# more practices
+help("AirPassengers")
+```
+```{r}
+plot(AirPassengers)
+```
+```{r}
+plot(djia$Close)
+```
+
+```{r}
+plot(soi)
+```
+```{r}
+# detrending
+par(mfrow = c(2, 1))
+plot(cmort)
+plot(diff(cmort))
+```
+```{r}
+par(mfrow = c(2, 1))
+plot(gnp)
+plot(diff(log(gnp)))
+```
+
+## 6.2 AR and MA models
+```{r}
+par(mfrow = c(2, 1))
+x <- arima.sim(list(order = c(1, 0, 0), ar = -0.7), n = 200)
+y <- arima.sim(list(order = c(0, 0, 1), ma = -0.7), n = 200)
+plot(x, main = "AR(1)")
+plot(y, main = "MA(1)")
+```
+
+```{r}
+# AR(2) with mean = 50
+x <- arima.sim(list(order = c(2, 0, 0), ar = c(1.5, -0.75)), n = 200) + 50
+
+x_fit <- sarima(x, p = 2, d = 0, q = 0)
+x_fit$ttable
+```
+```{r}
+# MA(1) with mean = 0
+y <- arima.sim(list(order = c(0, 0, 1), ma = -0.7), n = 200)
+y_fit <- sarima(y, p = 0, d = 0, q = 1)
+y_fit$ttable
+               
+```
+```{r}
+# ARMA model
+x <- arima.sim(list(order = c(1, 0, 1),
+                    ar = 0.9,
+                    ma = -0.4),
+                    n = 200)
+plot(x, main = "ARMA(1, 0, 1)")
+```
+```{r}
+# ACF and PACF
+acf(x)
+```
+
+```{r}
+# pacf
+pacf(x)
+```
+```{r}
+# estimation
+x <- arima.sim(list(order = c(1, 0, 1),
+                    ar = 0.9,
+                    ma = -0.4),
+                    n = 200) + 50
+x_fit <- sarima(x, p = 1, d = 0, q = 1)
+x_fit$ttable
+```
+```{r}
+# model selection and residual analysis
+# AR(1) vs. MA(2)
+gnpgr <- diff(log(gnp))
+
+sarima(gnpgr, p = 1, d = 0, q = 0)
+```
+
+```{r}
+sarima(gnpgr, p = 0, d = 0, q = 2)
+```
+```{r}
+# residual analysis
+# bad residuals
+# 1. pattern
+# 2. ACF large values
+# 3. QQ plot - big gap
+# 4. Q-stat, all point below line
+```
+
+
