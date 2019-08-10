@@ -315,5 +315,27 @@ fit %>% forecast(xreg = fourier(cafe, K = 3, h = 24)) %>%
   ylim(1.6, 5.1)
 ```
 
+```{r}
+# TBATS model
+# us gasoline data
+
+gasoline %>% 
+  tbats() %>% 
+  forecast() %>% 
+  autoplot() +
+  xlab("year") +
+  ylab("thousand barrel per day")
+```
+
+```{r}
+# call center data
+calls %>% 
+  window(start = 20) %>% 
+  tbats() %>% 
+  forecast() %>% 
+  autoplot() +
+  xlab("weeks") +
+  ylab("Calls")
+```
 
 
