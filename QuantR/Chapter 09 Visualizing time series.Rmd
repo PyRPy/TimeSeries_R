@@ -1,0 +1,54 @@
+---
+title: "Chapter 09 Visualizing time series"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 9.1 plot functions
+```{r}
+library(fpp2)
+plot(uschange[, 1], main = "consumption")
+lines(uschange[, 1], col = "red", lwd = 2)
+```
+```{r}
+# subtitle
+plot(uschange[, 1], main = "consumption", sub = "in US")
+lines(uschange[, 1], col = "red", lwd = 2)
+```
+```{r}
+# plot two trend in one 
+plot(uschange[, 1], main = "consumption")
+lines(uschange[, 2], col = "red")
+```
+
+```{r}
+# display units for the second trend
+plot(uschange[, 1], main = "consumption")
+lines(uschange[, 2], col = "red")
+axis(side = 4, at = pretty(uschange[, 2]))
+```
+```{r}
+# put legends for trends
+plot(uschange[, 1], main = "consumption")
+lines(uschange[, 2], col = "red")
+axis(side = 4, at = pretty(uschange[, 2]))
+legend(x = "bottom", legend = c("Stock X", "Stock Y"),
+       col = c("black", "red"), lty = c(1, 1))
+abline(h = 0)
+```
+
+```{r}
+# add vertical line
+plot(uschange[, 1], main = "consumption")
+lines(uschange[, 1], col = "red", lwd = 2)
+abline(v = as.Date("2000/Q1")) # not working
+```
+```{r}
+# use chart.TimeSeries from 'PerformanceAnalytics'
+library(PerformanceAnalytics)
+chart.TimeSeries(uschange[, 1], main = "another try")
+```
+
