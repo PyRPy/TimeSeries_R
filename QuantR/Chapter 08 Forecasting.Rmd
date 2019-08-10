@@ -284,7 +284,36 @@ autoplot(fcast) +
   ylab("percentage change")
 ```
 
+```{r}
+# dynamic harmonic regression
+# cafe expenditure
+cafe <- window(auscafe, start = 2002)
+fit <- auto.arima(cafe, xreg = fourier(cafe, K = 1),
+                  seasonal = FALSE, lambda = 0)
 
+fit %>% forecast(xreg = fourier(cafe, K = 1, h = 24)) %>% 
+  autoplot() +
+  ylim(1.6, 5.1)
+```
+```{r}
+# K = 2
+fit <- auto.arima(cafe, xreg = fourier(cafe, K = 2),
+                  seasonal = FALSE, lambda = 0)
+
+fit %>% forecast(xreg = fourier(cafe, K = 2, h = 24)) %>% 
+  autoplot() +
+  ylim(1.6, 5.1)
+```
+
+```{r}
+# K = 3, 4, 5, 6
+fit <- auto.arima(cafe, xreg = fourier(cafe, K = 3),
+                  seasonal = FALSE, lambda = 0)
+
+fit %>% forecast(xreg = fourier(cafe, K = 3, h = 24)) %>% 
+  autoplot() +
+  ylim(1.6, 5.1)
+```
 
 
 
