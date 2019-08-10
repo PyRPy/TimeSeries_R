@@ -52,3 +52,45 @@ library(PerformanceAnalytics)
 chart.TimeSeries(uschange[, 1], main = "another try")
 ```
 
+## 9.2 univariate time series analysis
+```{r}
+library(quantmod)
+library(TTR)
+getSymbols("GE", src = "yahoo")
+```
+
+```{r}
+# plot GE stocks
+plot(GE$GE.Close, main = "GE stock price")
+```
+```{r}
+# returns
+rtn <- ROC(GE$GE.Close)
+plot(rtn, main = "GE stock returns")
+```
+
+```{r}
+# histogram
+hist(rtn,
+     breaks = 30,
+     main = "GE return distribution",
+     probability = TRUE,
+     xlab = "")
+```
+
+```{r}
+# boxplot
+boxplot(coredata(rtn), horizontal = TRUE, main = "GE return distribution")
+```
+
+```{r}
+# autocorrelation
+acf(na.omit(rtn), lag.max = 10, main = "GE return autocorrelation")
+```
+
+```{r}
+
+# qq norm plot
+qqnorm(na.omit(rtn), main = "GE return QQ-Plot")
+qqline(rtn, col = "red")
+```
