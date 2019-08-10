@@ -203,9 +203,46 @@ usmelec %>%
   autoplot()
 ```
 
+```{r}
+# ARIMA MODELS
+autoplot(usnetelec) +
+  xlab("year") +
+  ylab("billion kwh") +
+  ggtitle("US net electricity generation")
+```
 
+```{r}
+# auto.arima
+fit <- auto.arima(usnetelec)
+summary(fit)
+```
+```{r}
+# forecast
+fit %>% forecast() %>% autoplot()
+```
 
+```{r}
+# seasonal ARIMA
+# monthly debit cards usage
 
+autoplot(debitcards) +
+  xlab("year") +
+  ylab("million ISK") +
+  ggtitle("retail debit card usage")
+```
+```{r}
+# fit seasonal model
+fit <- auto.arima(debitcards, lambda = 0)
+fit
+```
+
+```{r}
+# forecast
+fit %>% 
+  forecast(h = 36) %>% 
+  autoplot() +
+  xlab("year")
+```
 
 
 
