@@ -244,9 +244,45 @@ fit %>%
   xlab("year")
 ```
 
+## 8.5 Dynamic regression
+```{r}
+# error term is an 'arima' process
+# in regular regression, error term is 'white noise'
 
+# us personal consumption and income
+autoplot(uschange[, 1:2], facets = TRUE) +
+  xlab("year") +
+  ylab("") +
+  ggtitle("Quarterly changes in consumption and personal income")
+```
 
+```{r}
+# scatter plot
+ggplot(aes(x = Income, y = Consumption),
+       data = as.data.frame(uschange)) +
+  geom_point()+
+  ggtitle("Quarterly change in consumption and personal income")
+```
 
+```{r}
+# dynamic regression model
+fit <- auto.arima(uschange[, "Consumption"],
+                  xreg = uschange[, "Income"])
+fit
+```
+```{r}
+# check residuals
+checkresiduals(fit)
+```
+
+```{r}
+# forecast
+fcast <- forecast(fit, xreg = rep(0.8, 8))
+
+autoplot(fcast) +
+  xlab("year") +
+  ylab("percentage change")
+```
 
 
 
