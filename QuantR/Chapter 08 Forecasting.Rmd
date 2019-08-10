@@ -6,17 +6,6 @@ output: word_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-```
-
 ## 8.1 Inroduction
 ```{r}
 library(fpp2)
@@ -51,4 +40,141 @@ Box.test(pigs, lag = 24, fitdf = 0, type = "Lj")
 # p-value large, so white noise ?
 Box.test(wn, type = "Lj")
 ```
+
+## 8.2 Forecasts and potenital futures
+```{r}
+fc <- naive(oil)
+autoplot(oil, series = "Data") +
+  xlab("year") +
+  autolayer(fitted(fc), series = "Fitted") +
+  ggtitle("Oil production in Saudi")
+  
+```
+```{r}
+# residuals
+autoplot(residuals(fc))
+```
+```{r}
+# check residuals
+checkresiduals(fc)
+```
+
+```{r}
+# training and test sets
+training <- window(oil, end = 2003)
+test <- window(oil, start = 2004)
+fc <- naive(training, h = 10)
+autoplot(fc) +
+  autolayer(test, series = "test data")
+```
+
+```{r}
+# check the type of data
+class(training)
+```
+```{r}
+# accuracy
+accuracy(fc, test)
+```
+
+```{r}
+# cross-validation
+e <- tsCV(oil, forecastfunction = naive, h = 1)
+mean(e^2, na.rm = TRUE)
+```
+```{r}
+# self defined func
+sq <- function(u){u^2}
+for(h in 1:10){
+  oil %>% 
+    tsCV(forecastfunction = naive, h = h) %>% 
+    sq() %>% 
+    mean(na.rm = TRUE) %>% 
+    print()
+}
+```
+
+## 8.3 Exponentially weighted forecasts
+```{r}
+# simple exponential smoothing
+oildata <- window(oil, start = 1996)
+fc <- ses(oildata, h = 5)
+summary(fc)
+```
+```{r}
+autoplot(fc) +
+  ylab("oil - millions of tonnes") +
+  xlab("year")
+```
+
+```{r}
+# exponential smoothing with trend
+AirPassengers %>% 
+  holt(h = 5) %>% 
+  autoplot()
+```
+```{r}
+# damped trend method
+fc1 <- holt(AirPassengers, h = 15, PI = FALSE)
+fc2 <- holt(AirPassengers, damped = TRUE, h = 15, PI = TRUE)
+autoplot(AirPassengers) +
+  xlab("year") +
+  ylab("millions") +
+  autolayer(fc1, series = "linear trend") +
+  autolayer(fc2, series = "Damped trend")
+```
+```{r}
+# exponential smoothing with trend and seasonal pattern
+aust <- window(austourists, start = 2005)
+fc1 <- hw(aust, seasonal = "additive")
+fc2 <- hw(aust, seasonal = "multiplicative")
+autoplot(aust) +
+  xlab("year") +
+  ylab("millions") +
+  autolayer(fc1, series = "HW additive") +
+  autolayer(fc2, series = "HW multiply")
+```
+
+```{r}
+# state space models for exponential smoothing
+# ETS models
+ets(ausair)
+```
+
+```{r}
+# air traffic
+ausair %>%
+  ets() %>% 
+  forecast() %>% 
+  autoplot()
+```
+```{r}
+# monthly drug sales
+ets(h02)
+```
+
+```{r}
+h02 %>% 
+  ets() %>% 
+  forecast() %>% 
+  autoplot()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
