@@ -160,11 +160,48 @@ h02 %>%
   autoplot()
 ```
 
+## 8.4 Transformations for variance stabilization
+```{r}
+library(fpp2)
+autoplot(usmelec) +
+  xlab("year") +
+  ylab("") +
+  ggtitle("US monthly net electricity generation")
+```
 
+```{r}
+autoplot(usmelec^0.5) +
+  xlab("year") +
+  ylab("") +
+  ggtitle("Square root electricity generation")
+```
 
+```{r}
+autoplot(log(usmelec)) +
+  xlab("year") +
+  ylab("") +
+  ggtitle("log electricity generation")
+```
 
+```{r}
+autoplot(-1/usmelec) +
+  xlab("year") +
+  ylab("") +
+  ggtitle("inverse electricity generation")
+```
 
+```{r}
+# box-cox transformation
+BoxCox.lambda(usmelec)
+```
 
+```{r}
+# back-transformation
+usmelec %>% 
+  ets(lambda =  -0.57) %>% 
+  forecast(h = 60) %>% 
+  autoplot()
+```
 
 
 
