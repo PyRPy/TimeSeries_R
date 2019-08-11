@@ -1,0 +1,144 @@
+---
+title: "Chapter 12 Bond valuation and analysis"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 12.1 Bond valuation
+```{r}
+# pv
+pv <- 100
+
+# rate
+r <- 0.1
+
+fv1 <- pv * (1 + r)
+
+fv2 <- pv * (1 + r) * (1 + r)
+```
+
+```{r}
+# present value or pv1
+pv1 <- fv1 / (1 + r)
+pv2 <- fv2 / ((1 + r) * (1 + r))
+```
+
+```{r}
+# bond's cash flows
+cf <- c(5, 5, 5, 5, 105)
+cf <- data.frame(cf)
+cf
+```
+
+```{r}
+# discouting bond cf with a known yield
+cf$t <- as.numeric(rownames(cf))
+
+cf$pv_factor <- 1 / (1 + 0.06)^cf$t
+
+cf$pv <- cf$cf * cf$pv_factor
+
+# bond price
+sum(cf$pv)
+```
+
+```{r}
+# write a func
+bondprc <- function(p, r, ttm, y){
+  cf <- c(rep(p * r, ttm - 1), p * (1 + r))
+  cf <- data.frame(cf)
+  cf$t <- as.numeric(rownames(cf))
+  cf$pv_factor <- 1 / (1 + y)^cf$t
+  cf$pv <- cf$cf * cf$pv_factor
+  sum(cf$pv)
+}
+
+# bond value
+bondprc(100, 0.05, 5, 0.06)
+```
+
+## 12.2 price and yield relationship
+```{r}
+# yield on Moody's Baa index
+library(Quandl)
+
+baa <- Quandl("FED/RIMLPBAAR_N_M")
+
+# subsetting
+baa_yield <- subset(baa, baa$Date == "2016-09-30")
+
+baa_yield <- baa_yield$Value / 100
+
+baa_yield
+```
+
+```{r}
+# value 5% bond using Baa yield
+bondprc(p = 100, r = 0.05, ttm = 5, y = 0.0431)
+```
+```{r}
+# price vs yield
+prc_yld <- seq(0.02, 0.4, by = 0.01)
+
+# to df
+prc_yld <- data.frame(prc_yld)
+
+# calculate price with different yields
+for(i in 1:nrow(prc_yld)){
+  prc_yld$price[i] <- bondprc(100, 0.10, 20, prc_yld$prc_yld[i])
+}
+
+# plot
+plot(prc_yld, type = "l", col = "blue", main = "price vs yield")
+
+```
+
+```{r}
+# us treasury yields
+library(quantmod)
+t10yr <- getSymbols(Symbols = "DGS10", src = "FRED", auto.assign = FALSE)
+
+# sebsetting
+t10yr <- t10yr["2006-01/2016-09"]
+
+#plot
+plot(x = index(t10yr),
+     y = t10yr$DGS10,
+     xlab = "Date",
+     ylab = "Yield",
+     type = "l",
+     col = "red",
+     main = "10 year yield")
+```
+
+```{r}
+# find a bond's yield
+# guess using 5% yield
+bondprc(p = 100, r = 0.05, ttm = 5, y = 0.05)
+
+bondprc(p = 100, r = 0.05, ttm = 5, y = 0.07)
+
+bondprc(p = 100, r = 0.05, ttm = 5, y = 0.06)
+```
+```{r}
+# uniroot to find YTM
+# cash flow
+cf <- c(-95.79, 5, 5, 5, 5, 105)
+
+# bond valuation function
+bval <- function(i, cf,
+                 t = seq(along = cf))
+                 sum(cf / (1 + i)^t)
+
+# ytm function with uniroot
+ytm <- function(cf){
+  uniroot(bval, c(0, 1), cf = cf)$root
+}
+
+# use ytm() to get yield
+ytm(cf)
+```
+
