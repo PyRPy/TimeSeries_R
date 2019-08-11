@@ -94,3 +94,41 @@ acf(na.omit(rtn), lag.max = 10, main = "GE return autocorrelation")
 qqnorm(na.omit(rtn), main = "GE return QQ-Plot")
 qqline(rtn, col = "red")
 ```
+
+## 9.3 mutiple time series
+```{r}
+# get boeing stock
+getSymbols("BA", src = "yahoo")
+getSymbols("MSFT", src = "yahoo")
+
+```
+
+```{r}
+# stacked barplot
+barplot(GE$GE.Close, BA$BA.Close, beside = TRUE)
+```
+
+```{r}
+# scatter plot
+plot(x = coredata(GE$GE.Close), y = coredata(BA$BA.Close))
+```
+```{r}
+# merge GE and BA
+my_data <- merge(GE$GE.Close, BA$BA.Close, MSFT$MSFT.Close)
+head(my_data)
+```
+```{r}
+# pairs
+cor(my_data)
+```
+```{r}
+# pairs
+pairs(coredata(my_data))
+```
+```{r}
+# plot multiple time series
+plot.xts(my_data)
+```
+
+## 9.4 case study
+
