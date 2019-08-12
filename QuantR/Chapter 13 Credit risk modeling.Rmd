@@ -147,4 +147,28 @@ predict_cutoff_15 <- ifelse(prediction_all_full > 0.15, 1, 0)
 # confusion matrix
 table(test_set$loan_status, predict_cutoff_15)
 ```
+## 13.3 decision trees - not fully working
+```{r}
+# using rpart package
+library(rpart)
+library(rpart.plot)
+fit_default <- rpart(loan_status ~., method = "class", data = training_set[, -5])
+
+plot(fit_default)
+```
+```{r}
+# under sample
+tree_undersample <- rpart(loan_status ~., method = "class", data = training_set[,-5], control = rpart.control(cp = 0.001))
+
+plot(tree_undersample, uniform = TRUE)
+
+```
+## 13.4 confusion matrix
+
+```{r}
+library(pROC)
+# AUC
+Auc_model_full <- auc(test_set$loan_status, prediction_all_full)
+Auc_model_full
+```
 
