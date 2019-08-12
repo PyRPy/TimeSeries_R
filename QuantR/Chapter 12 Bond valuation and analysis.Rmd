@@ -206,3 +206,91 @@ p
 duration_dollar_change + convexity_dollar_change + p
 ```
 
+## 12.4 an complete example
+```{r}
+# load lib
+library(Quandl)
+```
+```{r}
+# moody's Aaa yield
+aaa <- Quandl("FED/RIMLPAAAR_N_M")
+
+# subsetting
+aaa_yield <- subset(aaa, aaa$Date == "2016-09-30")
+
+aaa_yield <- as.numeric(aaa_yield$Value) / 100
+aaa_yield
+```
+```{r}
+# bond valuation
+
+# cash flow
+cf <- c(3, 3, 3, 3, 3, 3, 3, 103)
+cf <- data.frame(cf)
+
+# add time
+cf$t <- seq(1, 8, 1)
+
+# PV factor
+cf$pv_factor <- 1/(1 + aaa_yield)^cf$t
+
+# PV
+cf$pv <- cf$cf * cf$pv_factor
+
+# price bond
+sum(cf$pv)
+```
+
+```{r}
+# alternative cash flow vector 
+alt_cf <- function(r, p, ttm){
+  c(rep(p * r, ttm - 1), p * (1 + r))
+}
+
+# generate vector
+alt_cf(r = 0.03, p = 100, ttm = 8)
+```
+```{r}
+# calculate duration
+px <-  bondprc(p = 100, r = 0.03, ttm = 8, y = 0.0341)
+
+# bond price, yield increases
+px_up <- bondprc(p = 100, r = 0.03, ttm = 8, y = 0.0441)
+
+# bond price,  yield decreases
+px_down <- bondprc(p = 100, r = 0.03, ttm = 8, y = 0.0241)
+
+# duration
+duration <- (px_down - px_up) / (2 * px * 0.01)
+
+# percentage
+duration_pct_change <- -duration / 100
+duration_pct_change
+
+# dollar effect
+duration_dollar_change <- -px * duration * 0.01
+duration_dollar_change
+```
+
+```{r}
+# convexity measure
+convexity <- (px_up + px_down - 2 * px)/(px * 0.01^2)
+
+# percentage effect
+convexity_pct_change <- 0.5 * convexity * (0.01)^2
+
+# dollar effect
+convexity_dollar_change <- convexity_pct_change * px
+convexity_dollar_change
+```
+
+```{r}
+# price change using duration and convexity
+price_change <- duration_dollar_change + convexity_dollar_change
+price_change
+
+# new price
+new_price <- px + duration_dollar_change + convexity_dollar_change
+new_price
+```
+
