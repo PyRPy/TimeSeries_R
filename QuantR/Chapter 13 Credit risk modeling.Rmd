@@ -1,0 +1,102 @@
+---
+title: "Chapter 13 Credit risk modeling"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 13.1 Import data and EDA
+```{r}
+# read data
+setwd("~/Examples_R/QR")
+loan_data <- readRDS("loan_data_ch1.rds")
+```
+```{r}
+# EDA
+head(loan_data)
+```
+```{r}
+# cross table
+library(gmodels)
+CrossTable(loan_data$home_ownership)
+
+```
+```{r}
+CrossTable(loan_data$home_ownership, loan_data$loan_status, prop.r = TRUE, prop.c = FALSE, prop.t = FALSE, prop.chisq = FALSE)
+```
+```{r}
+# histograms and outliers
+hist(loan_data$int_rate)
+```
+```{r}
+# breaks
+hist_income <- hist(loan_data$annual_inc, xlab = "Annual income", main = "Histogram")
+```
+```{r}
+# rule of thumb for outliers
+index_outlier_expert <- which(loan_data$annual_inc > 3000000)
+loan_data_expert <- loan_data[-index_outlier_expert]
+```
+```{r}
+# cut off
+outlier_cutoff <- quantile(loan_data$annual_inc, 0.75) + 1.5 * IQR(loan_data$annual_inc)
+
+index_outlier_ROT <- which(loan_data$annual_inc > outlier_cutoff)
+loan_data_ROT <- loan_data[-index_outlier_ROT]
+```
+```{r}
+# hist
+hist(loan_data_ROT$annual_inc, sqrt(nrow(loan_data_ROT)))
+```
+```{r}
+# missing data
+summary(loan_data$emp_length)
+```
+```{r}
+# dealing with missing data
+# delete rows
+index_NA <- which(is.na(loan_data$emp_length))
+loan_data_no_NA <- loan_data[-c(index_NA), ]
+```
+```{r}
+# delete column
+loan_data_delete_employ <- loan_data
+loan_data_delete_employ$emp_length <- NULL
+```
+```{r}
+# fill - median imputation
+index_NA <- which(is.na(loan_data$emp_length))
+loan_data_replace <- loan_data
+loan_data_replace$emp_length[index_NA] <- median(loan_data$emp_length, na.rm = TRUE)
+```
+```{r}
+# lump together
+loan_data$emp_cat <- rep(NA, length(loan_data$emp_length))
+loan_data$emp_cat[which(loan_data$emp_length <= 15)] <- "0-15"
+loan_data$emp_cat[which(loan_data$emp_length > 15 & loan_data$emp_length <= 30)] <- "15-30"
+loan_data$emp_cat[which(loan_data$emp_length > 30 & loan_data$emp_length <= 45)] <- "30-45"
+loan_data$emp_cat[which(loan_data$emp_length > 45)] <- "45+"
+loan_data$emp_cat[which(is.na(loan_data$emp_length))] <- "Missing"
+loan_data$emp_cat <- as.factor(loan_data$emp_cat)
+```
+
+```{r}
+# plot
+plot(loan_data$emp_cat)
+```
+```{r}
+# split data
+set.seed(567)
+index_train <- sample(1:nrow(loan_data), 2/3*nrow(loan_data))
+
+# train set
+training_set <- loan_data[index_train, ]
+
+# test set
+test_set <- loan_data[-index_train, ]
+
+head(test_set)
+```
+
