@@ -99,4 +99,52 @@ test_set <- loan_data[-index_train, ]
 
 head(test_set)
 ```
+## 13.2 Classification by logistic regression
+```{r}
+str(training_set)
+```
+```{r}
+# fitting model
+log_model <- glm(loan_status ~ age, family = "binomial", data = training_set)
+
+log_model
+```
+
+```{r}
+# model with prediction
+log_model_small <- glm(loan_status ~ age + home_ownership, family = "binomial", data = training_set)
+
+test_case <- as.data.frame(test_set[1, ])
+
+predict(log_model_small, newdata = test_case, type = "response")
+```
+```{r}
+# compare with test data
+test_case
+```
+
+```{r}
+# full model
+log_model_full <- glm(loan_status ~. , family = "binomial", data = training_set)
+
+summary(log_model_full)
+```
+```{r}
+# prediction on test data
+predictions_all_small <- predict(log_model_small, newdata = test_set, type = "response")
+
+range(predictions_all_small)
+```
+```{r}
+# specify a cut-off
+log_model_full <- glm(loan_status ~., family = "binomial", data = training_set[, -5])
+
+prediction_all_full <- predict(log_model_full, newdata = test_set[, -5], type = "response")
+
+# set cutoff at 0.15
+predict_cutoff_15 <- ifelse(prediction_all_full > 0.15, 1, 0)
+
+# confusion matrix
+table(test_set$loan_status, predict_cutoff_15)
+```
 
