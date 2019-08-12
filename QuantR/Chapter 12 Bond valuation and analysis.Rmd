@@ -142,3 +142,67 @@ ytm <- function(cf){
 ytm(cf)
 ```
 
+## 12.3 Bond price volatility and price value of a basis point
+```{r}
+# small change, symmetric effect
+bondprc(100, 0.1, 20, 0.101) / bondprc(100, 0.1, 20, 0.10) - 1
+bondprc(100, 0.1, 20, 0.099) / bondprc(100, 0.1, 20, 0.10) - 1
+```
+```{r}
+# large change, asymmetric effect
+bondprc(100, 0.1, 20, 0.14) / bondprc(100, 0.1, 20, 0.10) - 1
+bondprc(100, 0.1, 20, 0.06) / bondprc(100, 0.1, 20, 0.10) - 1
+```
+
+```{r}
+# lower coupon, more volatile
+bondprc(100, 0.1, 20, 0.08) / bondprc(100, 0.1, 20, 0.10) - 1
+bondprc(100, 0.05, 20, 0.08) / bondprc(100, 0.05, 20, 0.10) - 1
+bondprc(100, 0.00, 20, 0.08) / bondprc(100, 0.00, 20, 0.10) - 1
+```
+
+```{r}
+# shorter maturity, more volatile
+bondprc(100, 0.1, 20, 0.08) / bondprc(100, 0.1, 20, 0.10) - 1
+bondprc(100, 0.1, 10, 0.08) / bondprc(100, 0.1, 10, 0.10) - 1
+bondprc(100, 0.1, 5, 0.08) / bondprc(100, 0.1, 5, 0.10) - 1
+```
+
+```{r}
+# dollar value of an 01 = bond price votatility
+bondprc(100, 0.05, 20, 0.05)
+bondprc(100, 0.05, 20, 0.0501)
+abs(bondprc(100, 0.05, 20, 0.05) - bondprc(100, 0.05, 20, 0.0501))
+```
+
+```{r}
+# duration
+p <- bondprc(100, 0.05, 10, 0.04)
+p_down <- bondprc(100, 0.05, 10, 0.03)
+p_up <- bondprc(100, 0.05, 10, 0.05)
+duration <- (p_down -  p_up)/(2 * p * 0.01)
+duration_pct_change <- -duration * 0.01
+duration_dollar_change <- duration_pct_change * p
+duration_dollar_change
+```
+
+```{r}
+# convexity
+convexity <- (p_down +  p_up - 2 * p)/(p * (0.01^2))
+convexity_pct_change <- 0.5 * convexity * 0.01^2
+convexity_dollar_change <- 0.5 * convexity * 0.01^2 * p
+```
+
+```{r}
+# effect of duration + convexity
+duration_dollar_change + convexity_dollar_change
+```
+
+```{r}
+# current price
+p
+
+# estimated price
+duration_dollar_change + convexity_dollar_change + p
+```
+
