@@ -1,0 +1,187 @@
+---
+title: "Chapter 14 Quantitive risk management"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 14.1 Analyzing risk factors with R
+```{r}
+library(qrmdata)
+```
+```{r}
+data("SP500")
+head(SP500, 3)
+```
+```{r}
+tail(SP500, 3)
+```
+```{r}
+# plot
+plot(SP500)
+```
+### risk factor returns
+```{r}
+# log-returns in R
+sp500x <- diff(log(SP500))
+head(sp500x, 3)
+```
+```{r}
+# remove NA
+sp500x <- diff(log(SP500))[-1]
+head(sp500x, 3)
+```
+```{r}
+# plot
+plot(sp500x)
+```
+### Aggregating log-returns
+```{r warning=FALSE}
+library(xts)
+sp500x_w <- apply.weekly(sp500x, sum)
+head(sp500x_w, 3)
+```
+```{r}
+# monthly
+sp500x_m <- apply.monthly(sp500x, sum)
+head(sp500x_m, 3)
+```
+### commodities, bonds, yields
+## 14.2 Distribustions
+```{r}
+# normal distribution
+data("FTSE")
+ftse <- diff(log(FTSE))[-1]
+head(ftse)
+```
+```{r}
+# norm parameters
+mu <- mean(ftse)
+sigma <- sd(ftse)
+c(mu, sigma)
+```
+```{r}
+# not working, lines
+hist(ftse, nclass = 20, probability = TRUE)
+# lines(ftse, dnorm(ftse, mean = mu, sd=sigma), col="red")
+```
+```{r}
+# quantile-quantile plot
+data <- rnorm(1000, mean=3, sd=2)
+qqnorm(data)
+qqline(data)
+```
+```{r}
+# ftse qq-plot
+qqnorm(ftse)
+qqline(ftse)
+```
+```{r}
+# skewness and kurtosis
+library(moments)
+skewness(ftse)
+```
+```{r}
+kurtosis(ftse)
+```
+```{r}
+# the Jarque-Bera test
+jarque.test(as.vector(ftse))
+```
+```{r message=FALSE}
+# student distribution
+library(QRM)
+```
+```{r}
+# fitting student distribution
+tfit <- fit.st(ftse)
+tpars <- tfit$par.ests
+tpars
+```
+```{r}
+# extract data
+nu <- tpars[1]
+mu <- tpars[2]
+sigma <- tpars[3]
+```
+
+```{r}
+# display and compare
+hist(ftse, nclass = 20, probability = TRUE)
+yvals <- dt((ftse - mu)/sigma, df=nu)/sigma
+#lines(as.vector(ftse), as.vector(yvals), col="blue")
+```
+## 14.3 Characteristics of volatile return series
+```{r}
+# acf plot
+acf(ftse)
+```
+```{r}
+# abs value
+acf(abs(ftse))
+```
+### the Ljung-Box test
+```{r}
+Box.test(ftse, lag=10, type="Ljung")
+```
+```{r}
+Box.test(abs(ftse), lag=10, type = "Ljung")
+```
+```{r}
+# apply box-test to longer interval returns
+ftse_w <- apply.weekly(ftse, FUN = sum)
+Box.test(ftse, lag=10, type="Ljung")
+```
+```{r}
+Box.test(abs(ftse), lag=10, type="Ljung")
+```
+```{r}
+# extract extreme values
+ftse <- diff(log(FTSE))["1991-01-01/2010-12-31"]
+ftse_losses <- -ftse
+ftse_extremes <- ftse_losses[ftse_losses > 0.025]
+head(ftse_extremes, 3)
+```
+```{r}
+# plot
+plot(ftse_extremes, type="h", auto.grid=FALSE)
+```
+
+## 14.4 Value at risk or VaR
+```{r}
+# emperical estimates of VaR and ES
+losses <- rnorm(100)
+losses_o <- sort(losses, decreasing = TRUE)
+head(losses_o, 8)
+```
+```{r}
+quantile(losses, 0.95)
+```
+```{r}
+qnorm(0.95)
+```
+```{r}
+mean(losses[losses > quantile(losses, 0.95)])
+```
+```{r}
+ESnorm(0.95)
+```
+```{r}
+# black scholes
+library(qrmtools)
+K <- 50
+T <- 2
+t <- 0
+S <- 40
+r <- 0.005
+sigma <- 0.25
+Black_Scholes(t, S, r, sigma, K, T, "call")
+```
+```{r}
+# implied volatility X
+data(VIX)
+plot(VIX)
+```
+
