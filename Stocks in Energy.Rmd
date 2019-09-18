@@ -1,0 +1,107 @@
+---
+title: "Stocks in Energy"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Read the data - GE and others
+```{r message=FALSE, warning=FALSE}
+# load packages
+library(quantmod)
+library(PerformanceAnalytics)
+library(xts)
+```
+```{r}
+# read data
+getSymbols("CVA", src = "yahoo")
+```
+```{r}
+head(CVA)
+```
+```{r}
+plot(CVA$CVA.Close)
+```
+```{r}
+plot(window(CVA$CVA.Close, start = "2018-01-01"))
+```
+
+
+
+```{r}
+# monthly return
+cva_monthly <- to.monthly(CVA)
+
+# calculate returns
+cva_monthly_ret <- Return.calculate(cva_monthly)
+
+# plot monthly returns
+plot(cva_monthly_ret$CVA.Adjusted)
+```
+```{r}
+# year, month table
+table.CalendarReturns(cva_monthly_ret$CVA.Adjusted)
+```
+
+```{r}
+mean(cva_monthly_ret$CVA.Adjusted, na.rm = TRUE)
+```
+```{r}
+mean.geometric(cva_monthly_ret$CVA.Adjusted, na.rm = TRUE)
+```
+```{r}
+sd(cva_monthly_ret$CVA.Adjusted, na.rm = TRUE)
+```
+```{r}
+# annualized return mean
+Return.annualized(cva_monthly_ret$CVA.Adjusted, scale = 12) # specify scale
+```
+```{r}
+# annulized sd
+StdDev.annualized(cva_monthly_ret$CVA.Adjusted)
+```
+```{r}
+# annualized sharpe ratio
+ann_sharpe <- Return.annualized(cva_monthly_ret$CVA.Adjusted, scale = 12)/StdDev.annualized(cva_monthly_ret$CVA.Adjusted)
+ann_sharpe
+```
+```{r}
+table.AnnualizedReturns(cva_monthly_ret$CVA.Adjusted)
+```
+```{r}
+chart.RollingPerformance(R = cva_monthly_ret$CVA.Adjusted, scale = 12, width = 12, FUN = "Return.annualized")
+abline(h = 0.0171)
+```
+```{r}
+chart.RollingPerformance(R = cva_monthly_ret$CVA.Adjusted, scale = 12, width = 12, FUN = "SharpeRatio.annualized")
+abline(h = ann_sharpe)
+```
+```{r}
+chart.Histogram(cva_monthly_ret$CVA.Adjusted, methods = c("add.density", "add.normal"))
+```
+```{r}
+# balance risk and skewness
+skewness(cva_monthly_ret$CVA.Adjusted)
+```
+```{r}
+kurtosis(cva_monthly_ret$CVA.Adjusted)
+```
+```{r}
+# semi dev
+SemiDeviation(Cl(cva_monthly_ret))
+```
+
+```{r}
+# value at risk
+VaR(cva_monthly_ret$CVA.Close, p = 0.05)
+```
+```{r}
+ES(cva_monthly_ret$CVA.Close, p = 0.05)
+```
+```{r}
+cva_monthly_ret_2018 <- window(cva_monthly_ret, start = "2018-01-01", end = "2018-12-31")
+chart.Drawdown(cva_monthly_ret_2018$CVA.Close)
+```
+
