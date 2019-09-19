@@ -4,7 +4,7 @@ output: word_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ## Read the data - GE and others
@@ -13,95 +13,106 @@ knitr::opts_chunk$set(echo = TRUE)
 library(quantmod)
 library(PerformanceAnalytics)
 library(xts)
+library(fpp2)
 ```
-```{r}
+```{r message=FALSE, warning=FALSE}
 # read data
 getSymbols("CVA", src = "yahoo")
 ```
 ```{r}
-head(CVA)
+# head(CVA)
 ```
 ```{r}
-plot(CVA$CVA.Close)
+cva <- CVA$CVA.Close
+colnames(cva) <- "Close"
+# head(cva)
+```
+
+
+```{r}
+# Year 2007 to 2019
+autoplot(cva)
 ```
 ```{r}
-plot(window(CVA$CVA.Close, start = "2018-01-01"))
+# Year 2019
+autoplot(window(cva, start = "2019-01-01"))
+ 
 ```
 
 
 
 ```{r}
 # monthly return
-cva_monthly <- to.monthly(CVA)
+cva_monthly <- to.monthly(cva)
 
 # calculate returns
 cva_monthly_ret <- Return.calculate(cva_monthly)
 
 # plot monthly returns
-plot(cva_monthly_ret$CVA.Adjusted)
+plot(cva_monthly_ret$cva.Close)
 ```
 ```{r}
 # year, month table
-table.CalendarReturns(cva_monthly_ret$CVA.Adjusted)
+table.CalendarReturns(cva_monthly_ret$cva.Close)
 ```
 
 ```{r}
-mean(cva_monthly_ret$CVA.Adjusted, na.rm = TRUE)
+mean(cva_monthly_ret$cva.Close, na.rm = TRUE)
 ```
 ```{r}
-mean.geometric(cva_monthly_ret$CVA.Adjusted, na.rm = TRUE)
+mean.geometric(cva_monthly_ret$cva.Close, na.rm = TRUE)
 ```
 ```{r}
-sd(cva_monthly_ret$CVA.Adjusted, na.rm = TRUE)
+sd(cva_monthly_ret$cva.Close, na.rm = TRUE)
 ```
 ```{r}
 # annualized return mean
-Return.annualized(cva_monthly_ret$CVA.Adjusted, scale = 12) # specify scale
+Return.annualized(cva_monthly_ret$cva.Close, scale = 12) # specify scale
 ```
 ```{r}
 # annulized sd
-StdDev.annualized(cva_monthly_ret$CVA.Adjusted)
+StdDev.annualized(cva_monthly_ret$cva.Close)
 ```
 ```{r}
 # annualized sharpe ratio
-ann_sharpe <- Return.annualized(cva_monthly_ret$CVA.Adjusted, scale = 12)/StdDev.annualized(cva_monthly_ret$CVA.Adjusted)
+ann_sharpe <- Return.annualized(cva_monthly_ret$cva.Close, scale = 12)/StdDev.annualized(cva_monthly_ret$cva.Close)
 ann_sharpe
 ```
 ```{r}
-table.AnnualizedReturns(cva_monthly_ret$CVA.Adjusted)
+table.AnnualizedReturns(cva_monthly_ret$cva.Close)
 ```
 ```{r}
-chart.RollingPerformance(R = cva_monthly_ret$CVA.Adjusted, scale = 12, width = 12, FUN = "Return.annualized")
-abline(h = 0.0171)
+chart.RollingPerformance(R = cva_monthly_ret$cva.Close, scale = 12, width = 12, FUN = "Return.annualized")
+abline(h = -0.023)
 ```
 ```{r}
-chart.RollingPerformance(R = cva_monthly_ret$CVA.Adjusted, scale = 12, width = 12, FUN = "SharpeRatio.annualized")
+chart.RollingPerformance(R = cva_monthly_ret$cva.Close, scale = 12, width = 12, FUN = "SharpeRatio.annualized")
 abline(h = ann_sharpe)
 ```
 ```{r}
-chart.Histogram(cva_monthly_ret$CVA.Adjusted, methods = c("add.density", "add.normal"))
+chart.Histogram(cva_monthly_ret$cva.Close, methods = c("add.density", "add.normal"))
 ```
 ```{r}
 # balance risk and skewness
-skewness(cva_monthly_ret$CVA.Adjusted)
+skewness(cva_monthly_ret$cva.Close)
 ```
 ```{r}
-kurtosis(cva_monthly_ret$CVA.Adjusted)
+kurtosis(cva_monthly_ret$cva.Close)
 ```
 ```{r}
 # semi dev
-SemiDeviation(Cl(cva_monthly_ret))
+SemiDeviation(cva_monthly_ret$cva.Close)
 ```
 
 ```{r}
 # value at risk
-VaR(cva_monthly_ret$CVA.Close, p = 0.05)
+VaR(cva_monthly_ret$cva.Close, p = 0.05)
 ```
 ```{r}
-ES(cva_monthly_ret$CVA.Close, p = 0.05)
+ES(cva_monthly_ret$cva.Close, p = 0.05)
 ```
 ```{r}
-cva_monthly_ret_2018 <- window(cva_monthly_ret, start = "2018-01-01", end = "2018-12-31")
-chart.Drawdown(cva_monthly_ret_2018$CVA.Close)
+cva_monthly_ret_2018 <- window(cva_monthly_ret$cva.Close, start = "2018-01-01", end = "2018-12-31")
+chart.Drawdown(cva_monthly_ret_2018)
 ```
 
