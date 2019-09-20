@@ -1,0 +1,326 @@
+---
+title: "Chapter 05 Algorithmic Trading"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Momentum or directional trading
+```{r message=FALSE}
+# load packages
+library(quantmod)
+library(tseries)
+library(xts)
+library(zoo)
+```
+```{r message=FALSE}
+# load data from yahoo finance
+getSymbols("^DJI", src = "yahoo")
+tail(DJI)
+```
+```{r}
+dji <- DJI[,"DJI.Close"]
+class(dji)
+```
+
+```{r}
+# subsetting data
+dji <- dji[(index(dji) >= "2010-01-01" & index(dji) <= "2015-12-31"), ]
+ret_dji <- Delt(dji, k=1)
+```
+```{r}
+par(mfrow = c(2, 1))
+plot(dji)
+plot(ret_dji)
+```
+```{r}
+# prep for backtest
+in_sd <- "2010-01-01"
+in_ed <- "2014-12-31"
+out_sd <- "2015-01-01"
+out_ed <- "2015-12-31"
+```
+```{r}
+# in sample and out sample data sets
+in_dji<- dji[(index(dji) >= in_sd& index(dji) <= in_ed),]
+in_ret_dji<- ret_dji[(index(ret_dji) >= in_sd& index(ret_dji) <= in_ed),]
+out_dji<- dji[(index(dji) >= out_sd& index(dji) <= out_ed),]
+out_ret_dji<- ret_dji[(index(ret_dji) >= out_sd& index(ret_dji) <= out_ed),]
+```
+```{r}
+# generate automated trading signals
+macd<- MACD(in_dji, nFast =12, nSlow = 26, nSig = 9,maType="SMA", percent = FALSE)
+bb <- BBands(in_dji, n = 20, maType="SMA", sd = 2)
+
+signal <- NULL
+signal <- ifelse(in_dji> bb[,'up'] & macd[,'macd'] >macd[,'signal'],1,
+                 ifelse(in_dji< bb[,'dn'] & macd[,'macd'] <macd[,'signal'],-1,0))
+plot(signal)
+```
+
+```{r}
+# return
+trade_return<- in_ret_dji*lag(signal)
+```
+
+```{r}
+library(PerformanceAnalytics)
+cumm_ret<- Return.cumulative(trade_return)
+annual_ret<- Return.annualized(trade_return)
+charts.PerformanceSummary(trade_return)
+```
+
+```{r}
+plot(trade_return)
+```
+
+```{r}
+# trade return on a daily basis.
+summary(as.ts(trade_return))
+```
+```{r}
+# max drawdown
+maxDrawdown(trade_return)
+```
+```{r}
+StdDev(trade_return)
+```
+```{r}
+StdDev.annualized(trade_return)
+```
+```{r}
+VaR(trade_return, p = 0.95)
+```
+```{r}
+SharpeRatio(as.ts(trade_return), Rf = 0, p = 0.95, FUN = "StdDev")
+```
+```{r}
+SharpeRatio.annualized(trade_return, Rf = 0)
+```
+```{r}
+# work on out-sample data
+macd<- MACD(out_dji, nFast = 7, nSlow = 12, nSig = 15, maType="SMA", percent = FALSE)
+bb <- BBands(out_dji, n = 20, maType="SMA", sd = 2)
+```
+```{r}
+# out-sample signal
+signal <- NULL
+signal <- ifelse(out_dji> bb[,'up'] & macd[,'macd'] >macd[,'signal'],1,
+                 ifelse(out_dji< bb[,'dn'] & macd[,'macd'] <macd[,'signal'],-1,0))
+plot(signal)
+```
+
+```{r}
+# returns on out-sample data
+trade_return<- out_ret_dji*lag(signal)
+cumm_ret<- Return.cumulative(trade_return)
+annual_ret<- Return.annualized(trade_return)
+```
+```{r}
+charts.PerformanceSummary(trade_return)
+```
+```{r}
+maxdd<- maxDrawdown(trade_return)
+sd<- StdDev(trade_return)
+sda<- StdDev.annualized(trade_return)
+```
+```{r}
+# VaR
+VaR(trade_return, p = 0.95)
+```
+```{r}
+SharpeRatio(as.ts(trade_return), Rf = 0, p = 0.95, FUN = "StdDev")
+```
+```{r}
+SharpeRatio.annualized(trade_return, Rf = 0)
+```
+```{r}
+# check variance of DJI time series
+var(ret_dji, na.rm = TRUE)
+```
+```{r}
+# get S&P 500
+getSymbols("^GSPC",src="yahoo")
+```
+```{r}
+# return
+snp<- GSPC[,"GSPC.Close"]
+snp<- snp[(index(snp) >= "2010-01-01" & index(snp) <= "2015-12-31"),]
+ret_snp<- Delt(snp)
+```
+```{r}
+# variance
+var(ret_snp,na.rm=T)
+```
+```{r}
+# variance of two sum
+var(ret_dji + ret_snp, na.rm=T)
+```
+```{r}
+# to get the covariance correctly
+sd(ret_dji,na.rm=T)
+sd(ret_snp,na.rm=T)
+cor(ret_dji[!is.na(ret_dji)], ret_snp[!is.na(ret_snp)])
+```
+```{r}
+# get a two-component portfolio
+port_ret<- data.frame(matrix(NA,dim(ret_dji)[1],2))
+head(port_ret)
+```
+```{r}
+# fill two columns
+port_ret[,1] <- ret_dji
+port_ret[,2] <- ret_snp
+```
+```{r}
+# cor
+cor(port_ret)
+```
+```{r}
+# remove NAs
+port_ret<- port_ret[!is.na(port_ret[,1]),]
+cor(port_ret)
+```
+## Pairs trading
+### Distance-based pairs trading
+```{r}
+# normalize two series
+ret_dji[1] <- 1
+ret_snp[1] <- 1
+```
+```{r}
+# cumulative return
+norm_dji<- apply(ret_dji,2,cumprod)
+norm_snp<- apply(ret_snp,2,cumprod)
+
+```
+```{r}
+# plot and compare
+plot(norm_dji,type="l",ylim=c(0.5,2) ,ylab="Normalized_Price")
+lines(norm_snp,col="red")
+legend('topright',c("DJI","S&P 500") , lty=1, col=c('black','red'), bty='o', cex=1)
+```
+
+### Example for pairs trading XOM and CVX
+```{r}
+# get the data
+getSymbols("XOM",src="yahoo")
+```
+```{r}
+getSymbols("CVX",src="yahoo")
+```
+```{r}
+# prepare data, returns
+xom<- XOM[,"XOM.Close"]
+xom<- xom[(index(xom) >= "2010-01-01" & index(xom) <= "2015-12-31"),]
+ret_xom <- Delt(xom)
+
+cvx<- CVX[,"CVX.Close"]
+cvx<- cvx[(index(cvx) >= "2010-01-01" & index(cvx) <= "2015-12-31"),]
+ret_cvx <- Delt(cvx)
+```
+```{r}
+# plot for inspection
+par(mfrow = c(2, 1))
+plot(ret_xom)
+plot(ret_cvx)
+```
+```{r}
+# normalize two series
+# ret_xom[1] <- 1.0
+# ret_cvx[1] <- 1.0
+```
+```{r}
+# cumulative return
+# norm_xom<- apply(ret_xom,2,cumprod)
+# norm_cvx<- apply(ret_cvx,2,cumprod)
+
+# norm_xom <- cumprod(ret_xom$Delt.1.arithmetic)
+# norm_cvx <- cumprod(ret_cvx$Delt.1.arithmetic)
+norm_xom<- ret_xom
+norm_cvx<- ret_cvx
+
+norm_xom<- xts(norm_xom,index(ret_xom))
+norm_cvx<- xts(norm_cvx,index(ret_cvx))
+```
+```{r}
+# plot and compare
+par(mfrow=c(3,1))
+plot(norm_xom,type="l",ylab="Normalized_Price")
+lines(norm_cvx,col="red")
+legend('topright',c("XOM","CVX") , lty=1, col=c('black','red'), bty='o',
+cex=1)
+diff <-  norm_xom - norm_cvx
+plot(diff,type="l",ylab="Normalized_Price_difference")
+```
+```{r}
+# sd
+me <- mean(diff, na.rm = TRUE)
+std <- sd(diff, na.rm = TRUE)
+```
+```{r}
+# get upper band and lower band
+n <- 2
+ub<- me + n * std
+lb<- me - n * std
+```
+```{r}
+# signal = 1, buy when difference value < lower band
+# signal = -1, short, when difference value > upper band
+# otherwise, signal = 0, hold (0)
+
+signal <- ifelse(diff > ub,1,ifelse(diff < lb,-1,0))
+```
+```{r}
+# plot signal
+plot(signal, type="l")
+```
+```{r}
+# dynamic version
+me_dynamic<- rollapply(diff,10,mean)
+std_dynamic<- rollapply(diff,10,sd)
+```
+
+```{r}
+# trade spread
+cost <- 0
+spread_return<- ret_xom - ret_cvx
+trade_return<- spread_return*lag(signal) - cost
+summary(trade_return)
+```
+```{r}
+# performance parameters
+
+cumm_ret<- Return.cumulative(trade_return)
+annual_ret<- Return.annualized(trade_return)
+maxdd<- maxDrawdown(trade_return)
+sd<- StdDev(trade_return)
+sda<- StdDev.annualized(trade_return)
+cumm_ret
+```
+
+```{r}
+charts.PerformanceSummary(trade_return)
+```
+```{r}
+VaR(trade_return, p = 0.95)
+```
+```{r}
+
+SharpeRatio(as.ts(trade_return), Rf = 0, p = 0.95, FUN = "StdDev")
+```
+```{r}
+SharpeRatio.annualized(trade_return, Rf = 0)
+```
+
+
+
+
+
+
+
+
+
+
+
