@@ -1,0 +1,305 @@
+---
+title: "Chapter 06 Trading Using Machine Learning"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Logistic regression neural network
+```{r}
+# import data
+library("quantmod")
+getSymbols("^DJI",src="yahoo")
+dji<- DJI[,"DJI.Close"]
+```
+```{r}
+# build indicators
+avg10<- rollapply(dji,10,mean)
+avg20<- rollapply(dji,20,mean)
+std10<- rollapply(dji,10,sd)
+std20<- rollapply(dji,20,sd)
+rsi5<- RSI(dji,5,"SMA")
+rsi14<- RSI(dji,14,"SMA")
+macd12269<- MACD(dji,12,26,9,"SMA")
+macd7205<- MACD(dji,7,20,5,"SMA")
+bbands<- BBands(dji,20,"SMA",2)
+```
+
+```{r}
+# Up and Down direction
+direction<- NULL
+direction[dji> Lag(dji,20)] <- 1
+direction[dji< Lag(dji,20)] <- 0
+```
+```{r}
+# create a table
+dji<- cbind(dji,avg10,avg20,std10,std20,rsi5,rsi14,
+            macd12269,macd7205,bbands,direction)
+```
+
+```{r}
+dm <- dim(dji)
+dm
+```
+```{r}
+colnames(dji)[dm[2]]
+```
+```{r}
+# name a column as direction
+colnames(dji)[dm[2]] <- "Direction"
+```
+```{r}
+# prepare and slip data
+issd<- "2010-01-01"
+ised<- "2014-12-31"
+ossd<- "2015-01-01"
+osed<- "2015-12-31"
+
+# get row index
+isrow<- which(index(dji) >= issd& index(dji) <= ised)
+osrow<- which(index(dji) >= ossd& index(dji) <= osed)
+
+# in-sample and out-sample data set
+isdji<- dji[isrow,]
+osdji<- dji[osrow,]
+```
+```{r}
+# mean and sd
+isme<- apply(isdji,2,mean)
+isstd<- apply(isdji,2,sd)
+
+# identity matrix - in sample data
+isidn<- matrix(1,dim(isdji)[1],dim(isdji)[2])
+
+# standardize or normlize data
+norm_isdji<- (isdji - t(isme*t(isidn))) / t(isstd*t(isidn))
+
+# correct the last column - direction
+dm<- dim(isdji)
+norm_isdji[,dm[2]] <- direction[isrow]
+head(norm_isdji)
+```
+```{r}
+# logistic regression model
+formula<- paste("Direction ~ .",sep="")
+model<- glm(formula,family="binomial",norm_isdji)
+
+summary(model)
+```
+```{r}
+# prediction
+pred<- predict(model,norm_isdji)
+
+prob<- 1 / (1+exp(-(pred)))
+```
+```{r}
+# compare
+par(mfrow=c(2,1))
+plot(pred,type="l")
+plot(prob,type="l")
+```
+```{r}
+head(prob)
+```
+```{r}
+# convert to 1 or 0
+pred_direction<- NULL
+pred_direction[prob> 0.5] <- 1
+pred_direction[prob<= 0.5] <- 0
+```
+```{r}
+# confusion matrix - accuracy and more
+library(caret)
+
+# convert to factor somehow
+matrix<- confusionMatrix(as.factor(pred_direction),as.factor(norm_isdji$Direction))
+matrix
+```
+
+```{r}
+# test on out-sample data
+osidn<- matrix(1,dim(osdji)[1],dim(osdji)[2])
+norm_osdji<- (osdji - t(isme*t(osidn))) / t(isstd*t(osidn))
+norm_osdji[,dm[2]] <- direction[osrow]
+```
+```{r}
+# check dim
+dim(osidn)
+dim(norm_osdji)
+```
+
+```{r}
+# out-sample prediction
+ospred<- predict(model,norm_osdji)
+osprob<- 1 / (1+exp(-(ospred)))
+
+ospred_direction<- NULL
+ospred_direction[osprob> 0.5] <- 1
+ospred_direction[osprob<= 0.5] <- 0
+# ospred_direction <- as.factor(ospred_direction)
+# norm_osdji$Direction <- as.factor(norm_osdji$Direction)
+osmatrix<- confusionMatrix(as.factor(ospred_direction),as.factor(norm_osdji$Direction))
+osmatrix
+```
+### Neural network
+
+```{r}
+# reconstruct data set
+library(quantmod)
+getSymbols("^DJI",src="yahoo")
+dji<- DJI[,"DJI.Close"]
+ret <- Delt(dji)
+```
+```{r}
+# indicators / predictors
+avg10<- rollapply(dji,10,mean)
+avg20<- rollapply(dji,20,mean)
+std10<- rollapply(dji,10,sd)
+std20<- rollapply(dji,20,sd)
+rsi5<- RSI(dji,5,"SMA")
+rsi14<- RSI(dji,14,"SMA")
+macd12269<- MACD(dji,12,26,9,"SMA")
+macd7205<- MACD(dji,7,20,5,"SMA")
+bbands<- BBands(dji,20,"SMA",2)
+```
+```{r}
+# direction = Up when return over last 20 days > 2%
+direction<- data.frame(matrix(NA,dim(dji)[1],1))
+lagret<- (dji - Lag(dji,20)) / Lag(dji,20)
+direction[lagret> 0.02] <- "Up"
+direction[lagret< -0.02] <- "Down"
+direction[lagret< 0.02 &lagret> -0.02] <- "NoWhere"
+```
+
+```{r}
+# data frame
+dji<-cbind(dji,avg10,avg20,std10,std20,rsi5,rsi14,macd12269,macd7205,bbands)
+tail(dji)
+```
+```{r}
+# split data set
+train_sdate<- "2010-01-01"
+train_edate<- "2013-12-31"
+vali_sdate<- "2014-01-01"
+vali_edate<- "2014-12-31"
+test_sdate<- "2015-01-01"
+test_edate<- "2015-12-31"
+```
+```{r}
+# data sets
+trainrow<- which(index(dji) >= train_sdate& index(dji) <= train_edate)
+valirow<- which(index(dji) >= vali_sdate& index(dji) <= vali_edate)
+testrow<- which(index(dji) >= test_sdate& index(dji) <= test_edate)
+
+traindji<- dji[trainrow,]
+validji<- dji[valirow,]
+testdji<- dji[testrow,]
+```
+```{r}
+# normalize data
+trainme<- apply(traindji,2,mean)
+trainstd<- apply(traindji,2,sd)
+
+trainidn<- (matrix(1,dim(traindji)[1],dim(traindji)[2]))
+valiidn<- (matrix(1,dim(validji)[1],dim(validji)[2]))
+testidn<- (matrix(1,dim(testdji)[1],dim(testdji)[2]))
+
+norm_traindji<- (traindji - t(trainme*t(trainidn))) /t(trainstd*t(trainidn))
+norm_validji<- (validji - t(trainme*t(valiidn))) / t(trainstd*t(valiidn))
+norm_testdji<- (testdji - t(trainme*t(testidn))) / t(trainstd*t(testidn))
+```
+```{r}
+# correct direction column
+traindir<- direction[trainrow,1]
+validir<- direction[valirow,1]
+testdir<- direction[testrow,1]
+```
+```{r}
+# neural network model
+library(nnet)
+
+set.seed(1)
+model<- nnet(norm_traindji,class.ind(traindir),size=4,trace=F)
+model
+```
+```{r}
+dim(norm_traindji)
+```
+```{r}
+# validation
+vali_pred<- predict(model,norm_validji)
+head(vali_pred)
+```
+```{r}
+# construct direction again
+vali_pred_class<- data.frame(matrix(NA,dim(vali_pred)[1],1))
+vali_pred_class[vali_pred[,"Down"] > 0.5,1] <- "Down"
+vali_pred_class[vali_pred[,"NoWhere"] > 0.5,1] <- "NoWhere"
+vali_pred_class[vali_pred[,"Up"] > 0.5,1] <- "Up"
+```
+```{r}
+library(caret)
+matrix<- confusionMatrix(as.factor(vali_pred_class[,1]),as.factor(validir))
+matrix
+```
+```{r}
+# test data set
+test_pred<- predict(model,norm_testdji)
+
+test_pred_class<- data.frame(matrix(NA,dim(test_pred)[1],1))
+test_pred_class[test_pred[,"Down"] > 0.5,1] <- "Down"
+test_pred_class[test_pred[,"NoWhere"] > 0.5,1] <- "NoWhere"
+test_pred_class[test_pred[,"Up"] > 0.5,1] <- "Up"
+```
+```{r}
+# test matrix
+test_matrix<- confusionMatrix(as.factor(test_pred_class[,1]),as.factor(testdir))
+test_matrix
+```
+```{r}
+# generate signals
+signal<- ifelse(test_pred_class =="Up",1,ifelse(test_pred_class =="Down",-1,0))
+# Return ofdji closing price is calculated below
+ret<- ret[testrow]
+```
+```{r}
+# trade return
+cost<- 0
+trade_ret<- ret * Lag(signal)- cost
+```
+```{r}
+# evaluate performance
+library(PerformanceAnalytics)
+cumm_ret<- Return.cumulative(trade_ret)
+cumm_ret
+annual_ret<- Return.annualized(trade_ret)
+annual_ret
+```
+```{r}
+charts.PerformanceSummary(trade_ret)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
