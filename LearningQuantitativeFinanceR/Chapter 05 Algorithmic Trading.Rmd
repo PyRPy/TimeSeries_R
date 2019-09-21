@@ -44,7 +44,7 @@ out_ed <- "2015-12-31"
 ```{r}
 # in sample and out sample data sets
 in_dji<- dji[(index(dji) >= in_sd& index(dji) <= in_ed),]
-in_ret_dji<- ret_dji[(index(ret_dji) >= in_sd& index(ret_dji) <= in_ed),]
+in_ret_dji<- ret_dji[(index(ret_dji) >= in_sd & index(ret_dji) <= in_ed),]
 out_dji<- dji[(index(dji) >= out_sd& index(dji) <= out_ed),]
 out_ret_dji<- ret_dji[(index(ret_dji) >= out_sd& index(ret_dji) <= out_ed),]
 ```
@@ -62,6 +62,7 @@ plot(signal)
 ```{r}
 # return
 trade_return<- in_ret_dji*lag(signal)
+trade_return <- na.omit(trade_return)
 ```
 
 ```{r}
@@ -186,6 +187,8 @@ cor(port_ret)
 ### Distance-based pairs trading
 ```{r}
 # normalize two series
+ret_dji <- na.omit(ret_dji)
+ret_snp <- na.omit(ret_snp)
 ret_dji[1] <- 1
 ret_snp[1] <- 1
 ```
@@ -314,11 +317,195 @@ SharpeRatio(as.ts(trade_return), Rf = 0, p = 0.95, FUN = "StdDev")
 SharpeRatio.annualized(trade_return, Rf = 0)
 ```
 
+### Correlation based pairs trading
+```{r}
+# data frame for xom and cvx
+data <- data.frame(matrix(NA,dim(ret_xom)[1],2))
+data[,1] <- ret_xom
+data[,2] <- ret_cvx
+class(data)
+```
+```{r}
+# convert to xts
+data <- xts(data,index(ret_xom))
+```
+```{r}
+# function for corr calcs
+correlation <- function(x)
+  {
+  result <- cor(x[,1],x[,2])
+  return (result)
+}
+```
+```{r}
+# use last 10 points to calc corr
+corr<- rollapply(data,252,correlation,by.column=FALSE)
+plot(corr)
+```
+```{r}
+# hedge ratio of xom and cvx
+hedge_ratio <- xom/cvx
 
+# upper and lower bounds
+roll_me<- rollapply(hedge_ratio,14,mean)
+roll_std<- rollapply(hedge_ratio,14,sd)
+n <- 1
+roll_ub<- roll_me + n * roll_std
+roll_lb<- roll_me - n * roll_std
+```
+```{r}
+# signal generation
+signal <- NULL
+signal <- ifelse(hedge_ratio> roll_ub,-1,ifelse(hedge_ratio<roll_lb,1,0)) 
+lagsignal<- Lag(signal,1)
+signal <- ifelse(lagsignal == -1 & hedge_ratio > roll_me, -1,ifelse(lagsignal == 1 & hedge_ratio< roll_me,1,0))
+```
+```{r}
+# spread return and trade return
+cost <- 0 # for now
+spread_return<- ret_xom - ret_cvx
+trade_return<- spread_return*lag(signal) - cost
+```
+### Co-integration based pairs trading
+```{r}
+library(tseries)
+adf.test(xom)
 
+# cannot reject Ho, so ts is non-stationary
+```
+```{r}
+# check after diff
+diff <- xom - Lag(xom,1)
+adf.test(diff[!is.na(diff)])
+```
+```{r}
+# linear model without intercept
+model <- lm(xom ~ cvx + 0)
+summary(model)
+```
 
+```{r}
+# unit root
+adf.test(as.ts(model$ residuals))
 
+## -2.6088 > -3.43, which implies that there is unit roo.
+## Finding of unit root implies XOM and CVX are not co-integrated
+```
+```{r}
+getSymbols("BP",src="yahoo")
+```
+```{r}
+# prepare data, returns
+bp<- BP[,"BP.Close"]
+bp<- bp[(index(bp) >= "2010-01-01" & index(bp) <= "2015-12-31"),]
+ret_bp <- Delt(bp)
+```
+```{r}
+# linear model
+model <- lm(xom ~ bp + 0)
+adf.test(as.ts(model$residuals))
 
+# no unit root, this pair is stationary ?
+```
+```{r}
+par(mfrow=c(2,1))
+plot(xom,type="l")
+lines(bp*model$coefficients,col="red")
+plot.ts(model$residuals)
+```
+
+### Capital asset pricing model
+```{r}
+# linear model  cvx ~ dji
+rf<- rep(0,length(dji)) # zero as risk-free return
+model <- lm((ret_cvx -rf) ~ (ret_dji -rf) )
+model
+```
+
+```{r}
+# using PerformanceAnalytics
+CAPM.beta(ret_cvx, ret_dji)
+CAPM.alpha(ret_cvx, ret_dji)
+```
+
+```{r}
+plot(as.ts(ret_cvx),as.ts(ret_dji),xlab="CVX_ Return",ylab="DJI_Return")
+abline(model,col="red")
+```
+```{r}
+cor(na.omit(ret_cvx),na.omit(ret_dji))
+```
+### Multi factor model
+### Portfolio construction
+```{r}
+# extract data
+stockData<- new.env()
+symbols <- c("MSFT","FB","GOOG","AAPL")
+start_date<- as.Date("2014-01-01")
+getSymbols(symbols, src="yahoo", env=stockData, from=start_date)
+x <- list()
+```
+```{r}
+# data frame consisting of closing prices of all stocks in portfolio:
+for (i in 1:length(symbols)) {
+  x[[i]] <- get(symbols[i], pos=stockData) # get data from stockData environment
+  x[[i]]$gl<-((Cl(x[[i]])-Op(x[[i]]))/Op(x[[i]]))*100 #Daily gain loss percentage
+  if(i==1)
+    data <- Cl(x[[i]])
+  else
+    data <- cbind(data,Cl(x[[i]])) 
+}
+
+head(data)
+```
+```{r}
+# return, average return for each stocks, and covariance matrix
+data_ret<- apply(data,2,Delt)
+napos<- which(apply(data_ret,2,is.na))# Remove Na's
+avg_ret<- apply(data_ret[-napos,],2,mean)
+covariance_mat<- cov(data_ret,use='na')
+```
+```{r}
+# weights to assign to portfolio
+weights <- c(0.2,0.3,0.35,0.15)
+```
+```{r}
+# source portofolio.R
+source("portfolio.R")
+```
+```{r}
+# generate portfolio expected return and risk
+weightedport <- getPortfolio(avg_ret,covariance_mat,weights)
+weightedport
+```
+```{r}
+# lower standard deviation
+minvar_port<- globalMin.portfolio(avg_ret, covariance_mat)
+minvar_port
+```
+```{r}
+# 0.0002 as the expected return
+rf<- 0.0002
+effcient_port<- efficient.portfolio(avg_ret, covariance_mat,rf)
+effcient_port
+```
+```{r}
+# highest Sharpe's slope
+tangency_port<- tangency.portfolio(avg_ret,covariance_mat , rf)
+tangency_port
+```
+```{r}
+# efficient frontier
+efficient_frontier<- efficient.frontier(avg_ret, covariance_mat,
+alpha.min=-2,alpha.max=2, nport=50)
+```
+```{r}
+plot(efficient_frontier, plot.assets=T)
+points(minvar_port$sd, minvar_port$er, col="blue")
+points(tangency_port$sd,tangency_port$er, col="red")
+tangenet_sharpe_ratio = (tangency_port$er - rf)/tangency_port$sd
+abline(a=rf, b=tangenet_sharpe_ratio)
+```
 
 
 
