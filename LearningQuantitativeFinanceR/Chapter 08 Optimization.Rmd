@@ -1,0 +1,29 @@
+---
+title: "Chapter 08 Optimization"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Dynamic rebalancing
+### Periodic rebalancing
+```{r}
+library(PerformanceAnalytics)
+data(edhec)
+data<-edhec["1999", 3:5]
+colnames(data) = c("DS","EM","EMN")
+data
+```
+```{r}
+# initial weights
+wts <- xts(matrix(c(.3,.3,.4),nrow=1,ncol=3), as.Date("1998-12-31"))
+colnames(wts)<-colnames(data)
+wts
+```
+```{r}
+# rebalance monthly
+Return.portfolio(data,weights =wts, rebalance_on="months",verbose=TRUE)
+```
+
