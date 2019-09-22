@@ -280,8 +280,175 @@ annual_ret
 ```{r}
 charts.PerformanceSummary(trade_ret)
 ```
+### Deep neural network
+```{r}
+library(deepnet)
+set.seed(1)
+model<- dbn.dnn.train(norm_traindji,class.ind(traindir),hidden=c(3,4,6))
+```
+```{r}
+# validation
+# nn.predict(model,norm_validji)
+```
+```{r}
+# test
+nn.test(model,norm_validji,class.ind(validir),t=0.4)
+```
 
+```{r}
+# deep learning
+library(h2o)
+data<- cbind(as.data.frame(norm_traindji),traindir)
+h2o.init()
+```
+```{r}
+# check data format
+class(traindir)
+```
+```{r}
+datah2o<- as.h2o(data,"h2o")
+class(datah2o)
+```
+```{r}
+# dataframe 
+dim(datah2o)
+```
+```{r}
+# fit the model
+# column 1:15 predictor
+# column 16 response
+model <- h2o.deeplearning(1:15,16,training_frame=datah2o,hidden=c(4,5,2,7))
+```
+```{r}
+# validation
+vali_pred<- predict(model,as.h2o(norm_validji,"h2o"))
+vali_pred
+```
+```{r}
+# convert back to dataframe
+vali_pred<- as.data.frame(vali_pred)
+vali_pred_class<- data.frame(matrix(NA,dim(vali_pred)[1],1))
+vali_pred_class[vali_pred[,"Down"] > 0.5,1] <- "Down"
+vali_pred_class[vali_pred[,"NoWhere"] > 0.5,1] <- "NoWhere"
+vali_pred_class[vali_pred[,"Up"] > 0.5,1] <- "Up"
+```
+```{r}
+library(caret)
+vali_matrix<- confusionMatrix(as.factor(vali_pred_class[,1]),as.factor(validir))
+vali_matrix
+```
 
+### K means algorithm
+```{r}
+clusters<- 3
+set.seed(1)
+norm_isdji<- norm_isdji[,-dm[2]]
+norm_osdji<- norm_osdji[,-dm[2]]
+```
+```{r}
+# fit the model
+model<- kmeans(norm_isdji,clusters)
+```
+```{r}
+head(model$cluster)
+```
+```{r}
+model$center
+```
+```{r}
+model$size
+```
+```{r}
+# ratio of within over total
+model$tot.withinss / model$totss
+```
+```{r}
+ospredict<- cl_predict(model,norm_osdji) # not working
+```
+
+### K nearest neighborhood
+```{r}
+library(class)
+```
+```{r}
+# import data
+library("quantmod")
+getSymbols("^DJI",src="yahoo")
+dji<- DJI[,"DJI.Close"]
+```
+```{r}
+# build indicators
+avg10<- rollapply(dji,10,mean)
+avg20<- rollapply(dji,20,mean)
+std10<- rollapply(dji,10,sd)
+std20<- rollapply(dji,20,sd)
+rsi5<- RSI(dji,5,"SMA")
+rsi14<- RSI(dji,14,"SMA")
+macd12269<- MACD(dji,12,26,9,"SMA")
+macd7205<- MACD(dji,7,20,5,"SMA")
+bbands<- BBands(dji,20,"SMA",2)
+```
+```{r}
+# Up and Down direction
+direction<- NULL
+direction[dji> Lag(dji,20)] <- 1
+direction[dji< Lag(dji,20)] <- 0
+```
+```{r}
+# create a table
+dji<- cbind(dji,avg10,avg20,std10,std20,rsi5,rsi14,
+            macd12269,macd7205,bbands,direction)
+```
+```{r}
+dm <- dim(dji)
+# name a column as direction
+colnames(dji)[dm[2]] <- "Direction"
+```
+```{r}
+# prepare and slip data
+issd<- "2010-01-01"
+ised<- "2014-12-31"
+ossd<- "2015-01-01"
+osed<- "2015-12-31"
+
+# get row index
+isrow<- which(index(dji) >= issd& index(dji) <= ised)
+osrow<- which(index(dji) >= ossd& index(dji) <= osed)
+
+# in-sample and out-sample data set
+isdji<- dji[isrow,]
+osdji<- dji[osrow,]
+```
+```{r}
+# mean and sd
+isme<- apply(isdji,2,mean)
+isstd<- apply(isdji,2,sd)
+
+# identity matrix - in sample data
+isidn<- matrix(1,dim(isdji)[1],dim(isdji)[2])
+
+# standardize or normlize data
+norm_isdji<- (isdji - t(isme*t(isidn))) / t(isstd*t(isidn))
+
+# correct the last column - direction
+dm<- dim(isdji)
+norm_isdji[,dm[2]] <- direction[isrow]
+head(norm_isdji)
+```
+```{r}
+# test on out-sample data
+osidn<- matrix(1,dim(osdji)[1],dim(osdji)[2])
+norm_osdji<- (osdji - t(isme*t(osidn))) / t(isstd*t(osidn))
+norm_osdji[,dm[2]] <- direction[osrow]
+```
+
+```{r}
+# data set
+norm_isdji<- norm_isdji[,-dm[2]]
+norm_osdji<- norm_osdji[,-dm[2]]
+
+lagret<- (dji - Lag(dji,20)) / Lag(dji,20)
+```
 
 
 
