@@ -1,0 +1,185 @@
+---
+title: "Chapter 06 Trading Using Machine Learning Part 3"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Decision Trees
+```{r}
+# import data
+library("quantmod")
+getSymbols("^DJI",src="yahoo")
+dji<- DJI[,"DJI.Close"]
+lagret<- (dji - Lag(dji,20)) / Lag(dji,20)
+```
+```{r}
+# build indicators
+avg10<- rollapply(dji,10,mean)
+avg20<- rollapply(dji,20,mean)
+std10<- rollapply(dji,10,sd)
+std20<- rollapply(dji,20,sd)
+rsi5<- RSI(dji,5,"SMA")
+rsi14<- RSI(dji,14,"SMA")
+macd12269<- MACD(dji,12,26,9,"SMA")
+macd7205<- MACD(dji,7,20,5,"SMA")
+bbands<- BBands(dji,20,"SMA",2)
+```
+
+```{r}
+# Up and Down direction
+direction<- NULL
+direction[dji> Lag(dji,20)] <- 1
+direction[dji< Lag(dji,20)] <- 0
+```
+```{r}
+# create a table
+dji<- cbind(dji,avg10,avg20,std10,std20,rsi5,rsi14,
+            macd12269,macd7205,bbands,direction)
+```
+
+```{r}
+dm <- dim(dji)
+dm
+```
+```{r}
+colnames(dji)[dm[2]]
+```
+```{r}
+# name a column as direction
+colnames(dji)[dm[2]] <- "Direction"
+```
+```{r}
+# prepare and slip data
+issd<- "2010-01-01"
+ised<- "2014-12-31"
+ossd<- "2015-01-01"
+osed<- "2015-12-31"
+
+# get row index
+isrow<- which(index(dji) >= issd& index(dji) <= ised)
+osrow<- which(index(dji) >= ossd& index(dji) <= osed)
+
+# in-sample and out-sample data set
+isdji<- dji[isrow,]
+osdji<- dji[osrow,]
+```
+```{r}
+# mean and sd
+isme<- apply(isdji,2,mean)
+isstd<- apply(isdji,2,sd)
+
+# identity matrix - in sample data
+isidn<- matrix(1,dim(isdji)[1],dim(isdji)[2])
+
+# standardize or normlize data
+norm_isdji<- (isdji - t(isme*t(isidn))) / t(isstd*t(isidn))
+
+# correct the last column - direction
+dm<- dim(isdji)
+norm_isdji[,dm[2]] <- direction[isrow]
+head(norm_isdji)
+```
+
+```{r}
+# test on out-sample data
+osidn<- matrix(1,dim(osdji)[1],dim(osdji)[2])
+norm_osdji<- (osdji - t(isme*t(osidn))) / t(isstd*t(osidn))
+norm_osdji[,dm[2]] <- direction[osrow]
+```
+### Decision tree
+```{r}
+library(party)
+```
+
+```{r}
+# fit model
+model<- ctree(Direction ~ .,data = norm_isdji)
+# print(model)
+summary(model)
+```
+```{r}
+plot(model)
+```
+```{r}
+# prediction
+dm<- dim(norm_osdji)
+pred<- predict(model,norm_osdji[,1:(dm[2]-1)])
+head(pred)
+```
+```{r}
+plot(pred)
+```
+
+### Random forest
+```{r}
+library(randomForest)
+```
+```{r}
+# reconstruct data set
+norm_isdji<- norm_isdji[,-dm[2]]
+norm_osdji<- norm_osdji[,-dm[2]]
+
+direction[lagret> 0.02] <- "Up"
+direction[lagret< -0.02] <- "Down"
+direction[lagret< 0.02 &lagret> -0.02] <- "NoWhere"
+isdir<- direction[isrow]
+osdir<- direction[osrow]
+```
+```{r}
+names(norm_isdji)
+```
+```{r}
+length(names(norm_isdji))
+```
+```{r}
+class(isdir)
+```
+```{r}
+# convert to factors
+isdir<- as.factor(isdir)
+osdir<- as.factor(osdir)
+```
+```{r}
+model<- randomForest(norm_isdji, y=as.factor(isdir), xtest=norm_osdji, ytest=as.factor(osdir), ntree=500)
+```
+```{r}
+print(model)
+```
+```{r}
+# in-sample errors
+plot(model$err.rate[,1],type="l",ylim=c(0.05,0.3),ylab="Error")
+lines(model$err.rate[,2],col="red")
+lines(model$err.rate[,3],col="green")
+lines(model$err.rate[,4],col="blue")
+```
+
+```{r}
+# importance
+value<- importance(model,type = 2)
+head(value)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
