@@ -1,0 +1,93 @@
+---
+title: "Chapter 09 Derivative Pricing"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Option pricing
+### Black-Scholes model
+* current price of the underlying stock is USD 900, the strike price is USD 950, the volatility is 22%, and the risk-free rate is 2%. We also have to set the cost of carry (b);
+```{r}
+# fit the model "call"
+library(fOptions)
+model <- GBSOption(TypeFlag = "c", S = 900, X =950, Time = 1/4, 
+                   r = 0.02,sigma = 0.22, b = 0.02)
+model
+```
+
+```{r}
+# extract output
+model@price
+```
+
+```{r}
+# pull
+GBSOption(TypeFlag = "p", S = 900, X =950, Time = 1/4, 
+          r = 0.02, sigma = 0.22, b = 0.02)@price
+```
+### Cox-Ross-Rubinstein model
+```{r}
+CRRBinomialTreeOption(TypeFlag = "ce", S = 900, X = 950, Time = 1/4, 
+                      r = 0.02, b = 0.02, sigma = 0.22, n = 3)@price
+```
+```{r}
+CRRBinomialTreeOption(TypeFlag = "pe", S = 900, X = 950, Time = 1/4, 
+                      r = 0.02, b = 0.02, sigma = 0.22, n = 3)@price
+```
+```{r}
+# plot the model
+model<- BinomialTreeOption(TypeFlag = "ce", S = 900, X = 950,Time = 1/4, 
+                           r = 0.02, b = 0.02, sigma = 0.22, n = 3)
+BinomialTreePlot(model, dy = 1, xlab = "Time steps",ylab = "Options Value", 
+                 xlim = c(0,4) ,ylim=c(-3,4))
+title(main = "Call Option Tree")
+```
+```{r}
+func <- function(n) {
+  pr <- CRRBinomialTreeOption(TypeFlag = "ce", S = 900, X = 950, 
+                              Time = 1/4, r = 0.02, b = 0.02, sigma = 0.22, n = n)@price
+  return(pr)}
+```
+
+```{r}
+# CRR price converges to Black-Sholes price
+price <- sapply(1:100,func)
+plot(price)
+abline(h = 21.79275)
+```
+
+### Greeks
+```{r}
+GBSGreeks(Selection = "delta", TypeFlag = "c", S = 900, X = 950,Time = 1/4, 
+          r = 0.02, b = 0.02, sigma = 0.22)
+```
+```{r}
+GBSGreeks(Selection = 'gamma', TypeFlag = "c", S = 900, X = 950,Time = 1/4, 
+          r = 0.02, b = 0.02, sigma = 0.22)
+```
+
+```{r}
+portfolio<- sapply(c('c', 'p'), function(otype) sapply(500:1500, function(price) GBSGreeks(Selection = 'delta', TypeFlag = otype, S = price,X = 950, Time = 1/4, r = 0.02, b = 0.02, sigma = 0.22)))
+
+head(portfolio)
+```
+
+```{r}
+plot(500:1500, rowSums(portfolio), type='l',
+     xlab='underlying Price', ylab = 'Straddle Delta')
+```
+### Implied volatility
+```{r}
+library(RQuantLib)
+iv <-EuropeanOptionImpliedVolatility("call", 
+                                     11.10, 100, 100, 0.01, 0.03, 0.5,0.4)
+iv
+```
+### Bond pricing
+### Credit spread
+### Credit default swaps
+### Interest rate derivatives
+### Exotic options
