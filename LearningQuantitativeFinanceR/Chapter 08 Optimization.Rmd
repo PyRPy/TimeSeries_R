@@ -26,4 +26,113 @@ wts
 # rebalance monthly
 Return.portfolio(data,weights =wts, rebalance_on="months",verbose=TRUE)
 ```
+## Walk forward testing
+## Grid testing
+```{r message=FALSE}
+# import data
+library(randomForest)
+library(mlbench)
+library(caret)
+data(Shuttle)
+head(Shuttle)
+```
+
+```{r}
+# data prep
+Analysis_Data<-head(Shuttle,10000)
+X <- Analysis_Data[,1:9]
+Y<- Analysis_Data[,10]
+```
+
+```{r}
+# set up model grid
+control <- trainControl(method="repeatedcv", number=5, repeats=3)
+seed <- 4
+metric <- "Accuracy"
+set.seed(seed)
+Count_var <- sqrt(ncol(X))
+tunegrid <- expand.grid(.mtry=Count_var)
+
+# train the model - random forest
+rf_baseline <- train(Class~., data=Analysis_Data, method="rf", 
+                     metric=metric, tuneGrid=tunegrid, trControl=control)
+print(rf_baseline)
+```
+
+```{r}
+# grid search method
+control <- trainControl(method="repeatedcv", number=5, repeats=3, search="grid")
+set.seed(seed)
+tunegrid <- expand.grid(.mtry=c(1:8))
+rf_gridsearch_method <- train(Class~., data=Analysis_Data, method="rf", 
+                              metric=metric, tuneGrid=tunegrid, trControl=control)
+print(rf_gridsearch_method)
+```
+
+```{r}
+# mtry = 4 is best
+plot(rf_gridsearch_method)
+```
+
+## Genetic algorithm
+```{r}
+# data prep
+library(genalg)
+library(ggplot2)
+InputDataset <- data.frame(Stocks = c("Stock1", "Stock2", "Stock3","Stock4", 
+                                      "Stock5", "Stock6"), 
+                           returns = c(10, 11, 15, 20, 12, 13), 
+                           weight = c(.1, .2, .1, .2, .2, .3))
+WTlimit <- 1
+InputDataset
+```
+```{r}
+# evaluation function
+evaluationFunc <- function(x) {
+  current_solution_returns <- x %*% InputDataset$returns
+  current_solution_weight <- x %*% InputDataset$weight
+  if (current_solution_weight > WTlimit)
+    return(0) 
+  else 
+    return(-current_solution_returns)
+}
+```
+```{r}
+# run the model
+GAmodel <- rbga.bin(size = 6, popSize = 100, iters = 50, 
+                    mutationChance = 0.01, elitism = T, 
+                    evalFunc = evaluationFunc)
+cat(summary(GAmodel))
+```
+```{r}
+# load data
+library(GA)
+data(economics)
+Data_Analysis<-data.frame(economics[,2:4])
+head(Data_Analysis)
+```
+```{r}
+# evaluate function
+OLS_GA <- function(Data_Analysis, a0, a1, a2){
+  attach(Data_Analysis, warn.conflicts=F)
+  Y_hat <- a0 + a1*pop + a2*psavert
+  SSE = t(pce-Y_hat) %*% (pce-Y_hat)
+  detach(Data_Analysis)
+  return(SSE)
+}
+```
+
+```{r}
+# fit genetic model
+ga.OLS_GA <- ga(type='real-valued', min=c(-100,-100,-100),
+                max=c(100, 100, 100), popSize=500, maxiter=500, 
+                names= c('intercept', 'pop', 'psavert'), 
+                keepBest=T, fitness = function(a) - OLS_GA(Data_Analysis, -23520, 0.1062, 133.77))
+summary(ga.OLS_GA)
+```
+
+```{r}
+# linear model for reference
+summary(lm(pce ~ pop + psavert, data = Data_Analysis))
+```
 
