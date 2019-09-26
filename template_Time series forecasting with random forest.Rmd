@@ -1,0 +1,144 @@
+---
+title: "Time series forecasting with random forest"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Getting ready for machine learning or what's in a time series anyway?
+* Statistical transformations (Box-Cox transform, log transform, etc.)
+* Detrending (differencing, STL, SEATS, etc.)
+* Time Delay Embedding (more on this below)
+* Feature engineering (lags, rolling statistics, Fourier terms, time dummies, etc.)
+
+```{r message=FALSE, warning=FALSE}
+# load the packages
+library(fpp2)
+suppressPackageStartupMessages(require(tidyverse))
+suppressPackageStartupMessages(require(tsibble))
+suppressPackageStartupMessages(require(randomForest))
+suppressPackageStartupMessages(require(forecast))
+```
+```{r}
+# load data
+# monthly data set
+data("auscafe")
+plot_org <- autoplot(auscafe)
+```
+```{r}
+# check the type of time series
+class(auscafe)
+```
+```{r}
+# pretend we're in December 2016 and have to forecast the next twelve months
+auscafe_org <- window(auscafe, end=c(2016, 12))
+
+# estimate the required order of differencing
+n_diffs <- nsdiffs(auscafe_org)
+n_diffs
+```
+```{r}
+# log transform and difference the data
+auscafe_trf <- auscafe_org %>% 
+  log() %>% 
+  diff(n_diffs)
+
+# check out the difference! (pun)
+plot_trf <- auscafe_trf %>% 
+  autoplot() +
+  xlab("Year") +
+  ylab("") +
+  ggtitle("Auscafe") +
+  theme_minimal()
+
+gridExtra::grid.arrange(plot_org, plot_trf)
+
+```
+
+## Enter the matrix: Time Delay Embedding
+```{r}
+lag_order <- 6 # the desired number of lags (six months)
+horizon <- 12 # the forecast horizon (twelve months)
+
+auscafe_mbd <- embed(auscafe_trf, lag_order + 1) # embedding
+head(round(auscafe_mbd, 4))
+```
+
+## Forecasting
+```{r}
+y_train <- auscafe_mbd[, 1] # the target
+X_train <- auscafe_mbd[, -1] # everything but the target
+
+y_test <- window(auscafe, start = c(2017, 1)) 
+X_test <- auscafe_mbd[nrow(auscafe_mbd), c(1:lag_order)] 
+# the test set consisting of the six most recent values (we have six lags) 
+# of the training set. It's the same for all models.
+```
+### The random forest forecast
+```{r}
+forecasts_rf <- numeric(horizon)
+
+for (i in 1:horizon){
+  # set seed
+  set.seed(2019)
+
+  # fit the model
+  fit_rf <- randomForest(X_train, y_train)
+
+  # predict using the test set
+  forecasts_rf[i] <- predict(fit_rf, X_test)
+
+  # here is where we repeatedly reshape the training data to reflect the time distance
+  # corresponding to the current forecast horizon.
+  y_train <- y_train[-1] 
+
+  X_train <- X_train[-nrow(X_train), ] # remove last obs in lagged columns
+}
+```
+### Transform back to the original scale
+```{r}
+# calculate the exp term
+exp_term <- exp(cumsum(forecasts_rf))
+
+# extract the last observation from the time series (y_t)
+last_observation <- as.vector(tail(auscafe_org, 1))
+
+# calculate the final predictions
+backtransformed_forecasts <- last_observation * exp_term
+
+# convert to ts format
+y_pred <- ts(
+  backtransformed_forecasts,
+  start = c(2017, 1),
+  frequency = 12
+)
+```
+### Accuracy
+```{r}
+accuracy(y_pred, y_test)
+```
+
+### Plot the predictions
+```{r}
+autoplot(auscafe_org) +
+  autolayer(y_pred)
+```
+
+### Benchmark
+```{r}
+benchmark <- forecast(snaive(auscafe_org), h = horizon)
+
+auscafe %>% 
+  autoplot() +
+  autolayer(benchmark, PI = FALSE)
+
+accuracy(benchmark, y_test)
+```
+
+
+## Reference
+1. https://insightr.wordpress.com/2018/01/10/direct-forecast-x-recursive-forecast/
+
+2. https://www.r-bloggers.com/time-series-forecasting-with-random-forest/
