@@ -92,5 +92,5 @@ random_month <- train %>%
   filter(y == 1987, m == 3) 
 
 ggplot(random_month, aes(x = Date, y = residuals))+
-  geom_line(color = "#00AFBB", size = 2) +
+  geom_line() +
   scale_x_date()
