@@ -1,0 +1,96 @@
+---
+title: "Kalman filter for TSA"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## CO2 Data Set
+* CO2 data for illustration
+```{r}
+data(co2)
+```
+```{r message=FALSE, warning=FALSE}
+library(forecast)
+library(dlm)
+library(ggplot2)
+library(zoo)
+library(gridExtra)
+```
+```{r}
+ggplot(data.frame(x = index(co2), y = co2), aes(x = x, y = y)) +
+  geom_line() +
+  ylab("CO2") +
+  ggtitle("Time Series")
+```
+
+* Noisy version
+```{r}
+# noisy co2
+co2 <- co2 + rnorm(length(co2), 0, 2)
+ggplot(data.frame(x=index(co2), y=co2), aes(x=x, y=y)) + geom_line()
+```
+
+```{r}
+# forecasting using state sapce models
+model.build <- function(p) {
+    return(
+      dlmModPoly(2, dV=p[1], dW=p[2:3]) +
+      dlmModSeas(12, dV=p[4])
+    )
+}
+
+model.mle <- dlmMLE(co2, parm=c(0.1, 0, 1, 1), build=model.build)
+if(model.mle$convergence==0) print("converged") else print("did not converge")
+```
+* Model parameters
+```{r}
+model.mle$par
+```
+
+* Build model
+```{r}
+model.fit <- model.build(model.mle$par)
+
+model.filtered <- dlmFilter(co2, model.fit)
+
+# all(model.filtered$m %*% t(model.fit$GG) == model.filtered$a) 
+```
+* Filter data
+```{r}
+# kalman smoother
+model.smoothed <- dlmSmooth(co2, model.fit)
+```
+
+* Forecast
+```{r}
+n <- 6*12
+model.forecast <- dlmForecast(model.filtered, nAhead=n)
+
+x <- index(co2)
+xf <- seq(max(x), max(x)+n/12, 1/12)
+aa <- model.forecast$a[,-1]*(-1)
+aa <- cbind(model.forecast$a[,1], aa)
+a <- drop(model.forecast$a%*%t(FF(model.fit)))
+a <- c(tail(co2,1), a)
+df <- rbind(
+  data.frame(x=x, y=as.numeric(co2), series="original"),
+  data.frame(x=x, y=apply(model.filtered$m[-1,1:2], 1, sum), series="filtered"),
+  data.frame(x=x, y=apply(model.smoothed$s[-1,1:2], 1, sum), series="smoothed"),
+  data.frame(x=xf, y=a, series="forecast")
+)
+
+# visualize and compare
+g.dlm <- ggplot(subset(df, x>1970), aes(x=x, y=y, colour=series)) + geom_line()
+g.dlm
+
+```
+```{r}
+# forecasting using arima
+model <- auto.arima(co2)
+model.forecast <- forecast(model, h = 6*12)
+plot(model.forecast)
+
+```
