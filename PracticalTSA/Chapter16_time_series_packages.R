@@ -42,3 +42,30 @@ points(forecast$ds, forecast$yhat, type = "l", col=2)
 
 # decomposition
 prophet_plot_components(m, forecast)
+
+
+# anomaly detection -------------------------------------------------------
+# library(RCurl)
+# library(httr)
+# set_config( config( ssl_verifypeer = 0L ) )
+# 
+# devtools::install_github("twitter/AnomalyDetection", force = TRUE)
+library(AnomalyDetection)
+data("raw_data")
+head(raw_data)
+
+# find unusual values in both directions
+library(ggplot2)
+
+raw_data$timestamp <- as.POSIXct(raw_data$timestamp) # change format
+
+res = AnomalyDetectionTs(raw_data, max_anoms = 0.01, 
+                                direction = 'pos', plot = TRUE)
+
+res$anoms$timestamp <- as.POSIXct(res$anoms$timestamp)
+res$plot
+
+# fix
+ggplot(raw_data, aes(timestamp, count)) + 
+  geom_line(data=raw_data, aes(timestamp, count), color='blue') + 
+  geom_point(data=res$anoms, aes(timestamp, anoms), color='red')
