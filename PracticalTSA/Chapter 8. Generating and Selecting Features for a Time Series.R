@@ -70,3 +70,55 @@ dat <- yahoo["dat0.S1"]
 plot.ts(dat)
 str(yahoo)
 yahoo[1:5]["dat0.S1"]
+
+
+# IJF 2017 papter ---------------------------------------------------------
+
+library(tsfeatures)
+library(dplyr)
+library(tidyr)
+library(forecast)
+library(ggplot2)
+
+# get data set
+M3data <- purrr::map(Mcomp::M3,
+  function(x){
+    tspx <- tsp(x$x)
+    ts(c(x$x, x$xx), start = tspx[1], frequency = tspx[3])
+  })
+
+khs_stl <- function(x,...){
+  lambda <- BoxCox.lambda(x, lower = 0, upper = 1, method = 'loglik')
+  y <- BoxCox(x, lambda)
+  c(stl_features(y, s.window='periodic', robust=TRUE, ...), lambda=lambda)
+}
+
+khs <- bind_cols(
+  tsfeatures(M3data, c("frequency", "entropy")),
+  tsfeatures(M3data, "khs_stl", scale = FALSE)) %>% 
+  select(frequency, entropy, trend, seasonal_strength, e_acf1, lambda) %>% 
+  replace_na(list(seasonal_strength=0)) %>% 
+  rename(
+    Frequency = frequency,
+    Entropy = entropy,
+    Trend = trend,
+    Season = seasonal_strength,
+    ACF1 = e_acf1,
+    Lambda = lambda) %>% 
+  mutate(Period = as.factor(Frequency))
+
+# plot the results
+khs %>%
+  select(Period, Entropy, Trend, Season, ACF1, Lambda) %>% 
+  GGally::ggpairs()
+ 
+# extract space components
+khs_pca <- khs %>%
+  select(-Period) %>% 
+  prcomp(scale = TRUE)
+
+khs_pca$x %>% 
+  as_tibble() %>% 
+  bind_cols(Period = khs$Period) %>% 
+  ggplot(aes(x=PC1, y=PC2)) +
+  geom_point(aes(col=Period))
