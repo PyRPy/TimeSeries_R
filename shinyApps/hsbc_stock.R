@@ -12,9 +12,15 @@ with(data = stock,
 
 # forecast next 10 days price
 library(fpp2)
+library(dplyr)
 arima.hsbc <- auto.arima(stock["Close"])
 autoplot(forecast(arima.hsbc, h = 10))
+
+autoplot(ts(stock["Close"]))
 
 library(astsa)
 sarima(ts(stock["Close"]), 0, 1, 0)
 sarima.for(ts(stock["Close"]), 10, 0, 1, 0)
+
+length(stock["Close"])
+dim(stock)[1]
