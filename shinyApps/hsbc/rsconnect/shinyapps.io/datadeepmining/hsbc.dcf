@@ -1,0 +1,12 @@
+name: hsbc
+title: hsbc
+username:
+account: datadeepmining
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1802142
+bundleId: 2796121
+url: https://datadeepmining.shinyapps.io/hsbc/
+when: 1581540549.84759
+asMultiple: FALSE
+asStatic: FALSE
