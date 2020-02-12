@@ -21,8 +21,8 @@ ui <- fluidPage(
          sliderInput("n",
                      "Number of Days",
                      min = 1,
-                     max = 365,
-                     value = 365)
+                     max = 253,
+                     value = 253)
       ),
       
       # Show a plot of the generated distribution
@@ -39,14 +39,20 @@ server <- function(input, output) {
      stock <- read.csv("HSBC.csv")
      stock <- stock[c("Date", "Close")]
      stock$Date <- as.Date(stock$Date)
-     with(data = stock[1:input$n, ], 
-          plot(Date, Close, type = "l", 
-               main = "HSBC Stock",
-               xlab = "Up to 12 Months",
-               ylab = "$ Close",
-               ylim = c(30, 50),
-               col = "blue"))
      
+     library(fpp2)
+     require(gridExtra)
+     p1 <- autoplot(ts(stock[1:input$n, "Close"])) +
+       ggtitle("Close Prices in 12 Month")
+  
+     end = dim(stock)[1]
+     start = end - 100
+     
+     arima.hsbc <- auto.arima(stock[start : end, "Close"])
+     p2 <- autoplot(forecast(arima.hsbc, h = 10)) + 
+       ggtitle("Forecast for next 10 Days based on past 100 Days Price")
+     
+     grid.arrange(p1, p2, ncol=1)
    })
 }
 
