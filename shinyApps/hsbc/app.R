@@ -18,17 +18,28 @@ ui <- fluidPage(
    # Sidebar with a slider input for number of bins 
    sidebarLayout(
       sidebarPanel(
-         sliderInput("n",
+        # select time range to display 
+        sliderInput("n",
                      "Number of Days",
+                     value = c(153, 253),
                      min = 1,
-                     max = 253,
-                     value = 253)
+                     max = 253
+                     ),
+        # days for prediction ahead
+        numericInput("h", "Days to predict", value = 10),
+        
+        # add options for prediction method
+        radioButtons("model", "Model to select",
+                     choices = c("naive", "ARIMA", "NeuralNet"),
+                     choiceValues = "ARIMA")
+         
       ),
       
       # Show a plot of the generated distribution
       mainPanel(
          plotOutput("trendPlot")
-      )
+         
+     )
    )
 )
 
@@ -42,18 +53,26 @@ server <- function(input, output) {
      
      library(fpp2)
      require(gridExtra)
-     p1 <- autoplot(ts(stock[1:input$n, "Close"])) +
+     p1 <- autoplot(ts(stock[input$n[1]:input$n[2], "Close"])) +
        ggtitle("Close Prices in 12 Month")
   
      end = dim(stock)[1]
      start = end - 100
      
-     arima.hsbc <- auto.arima(stock[start : end, "Close"])
-     p2 <- autoplot(forecast(arima.hsbc, h = 10)) + 
+     if (input$model == "naive"){
+       mod <- naive(stock[start : end, "Close"])
+     } else if (input$model == "ARIMA"){
+       mod <- auto.arima(stock[start : end, "Close"])
+     } else {
+       mod <- nnetar(stock[start : end, "Close"])
+     }
+     data <- forecast(mod, h = input$h)
+     p2 <- autoplot(forecast(mod, h = input$h)) + 
        ggtitle("Forecast for next 10 Days based on past 100 Days Price")
      
      grid.arrange(p1, p2, ncol=1)
    })
+   
 }
 
 # Run the application 
