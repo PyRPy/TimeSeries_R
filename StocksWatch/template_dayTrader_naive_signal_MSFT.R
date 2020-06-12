@@ -24,19 +24,22 @@ lineChart(MSFT, subset = '2015::2020')
 addSMA(n = 50, col = "blue")
 addSMA(n = 200, col = "red")
 
-lineChart(MSFT, subset = '2020')
-addSMA(n = 50, col = "blue")
-addSMA(n = 200, col = "red")
+zoomChart("2020-01::")
 
-lineChart(MSFT, subset = '2020')
+# lineChart(MSFT, subset = '2020')
+# addSMA(n = 50, col = "blue")
+# addSMA(n = 200, col = "red")
+
+lineChart(MSFT, subset = '2015::2020')
 addSMA(n = 10, col = "blue")
 addSMA(n = 50, col = "red")
 addSMA(n = 200, col = "white")
+zoomChart("2020-01::")
 
-lineChart(MSFT, subset = '2020-05::2020-06')
-addSMA(n = 10, col = "blue")
-addSMA(n = 50, col = "red")
-addSMA(n = 200, col = "white")
+# lineChart(MSFT, subset = '2020-05::2020-06')
+# addSMA(n = 10, col = "blue")
+# addSMA(n = 50, col = "red")
+# addSMA(n = 200, col = "white")
 
 # Setup -------------------------------------------------------------------
 
@@ -113,3 +116,4 @@ lineChart(MSFT, subset = '2020-03::2020-06')
 addSMA(n = 10, col = "blue")
 addSMA(n = 50, col = "red")
 # addSMA(n = 200, col = "white")
+tail(MSFT, 10)
