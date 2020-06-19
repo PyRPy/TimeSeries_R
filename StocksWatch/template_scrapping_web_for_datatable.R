@@ -34,3 +34,4 @@ for (stock in sampledStocks) {
 }
 
 symbols500[idx, ]
+lineChart(stocksEnv[["MTB"]])
