@@ -16,7 +16,7 @@ getSymbols(mystocks, from = "2015-01-01", src = "yahoo")
 
 dret <- dailyReturn(MSFT)
 head(dret, n = 5)
-
+tail(dret, n = 5)
 
 # Add moving average 
 
