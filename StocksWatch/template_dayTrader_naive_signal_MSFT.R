@@ -117,3 +117,13 @@ addSMA(n = 10, col = "blue")
 addSMA(n = 50, col = "red")
 # addSMA(n = 200, col = "white")
 tail(MSFT, 10)
+
+# add ARIMA model
+library(forecast)
+price_msft <- window(Cl(MSFT), start = "2020-04-01", end = "2020-06-17")
+arima_msft <- auto.arima(price_msft)
+arima_pred <- forecast(arima_msft, h = 1)
+arima_pred
+plot(arima_pred)
+
+plot(diff(arima_pred$mean))
