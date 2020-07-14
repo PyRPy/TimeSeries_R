@@ -2,6 +2,7 @@
 
 library(readr)
 library(quantmod)
+library(PerformanceAnalytics)
 companylist <- read_csv("symbols500.csv") # prepared in excel
 head(companylist)
 stockSymbols <- companylist["Symbol"]
