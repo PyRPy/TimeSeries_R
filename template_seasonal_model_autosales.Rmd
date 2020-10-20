@@ -1,0 +1,43 @@
+---
+title: "Tutorial on seasonal model"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Import Data Set
+
+```{r message=FALSE, warning=FALSE}
+library(readxl)
+sales <- read_excel("Auto_sales_data.xlsx", 
+     sheet = "Data from Statgraphics file", 
+     col_types = c("numeric", "numeric", "numeric", 
+         "date", "numeric", "numeric", "numeric", 
+         "numeric", "numeric", "numeric", 
+         "numeric", "numeric", "numeric", 
+         "text", "numeric", "numeric", "numeric", 
+         "numeric", "numeric", "numeric", 
+         "numeric", "numeric", "numeric", 
+         "numeric"), skip = 1)
+```
+```{r}
+dat <- ts(sales$AUTOSALE)
+plot(dat)
+```
+```{r}
+library(astsa)
+```
+```{r}
+(auto_model <- sarima(dat, 0, 1, 1, 0, 1, 1, 12))
+```
+```{r}
+summary(auto_model$fit)  # fit has all the returned arima() values
+plot(resid(auto_model$fit))  # plot the innovations (residuals) 
+```
+
+
+
+## Reference
+* https://people.duke.edu/~rnau/411sdif.htm
