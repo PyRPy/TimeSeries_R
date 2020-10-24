@@ -1,0 +1,52 @@
+---
+title: "COVID19_NJ"
+date: "October 23, 2020"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Read data
+```{r}
+covid <- read.csv("new-jersey-history.csv")
+str(covid)
+```
+## EDA
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(lubridate)
+```
+
+* Convert the date type
+```{r}
+covid$date <- as.Date(covid$date)
+
+```
+
+```{r}
+covid %>% ggplot(aes(x=date, y = death)) +
+  geom_line()+
+  ggtitle('Death from COVID19')
+```
+
+```{r}
+covid %>% ggplot(aes(x=date, y = positive)) +
+  geom_line()+
+  ggtitle('COVID positive')
+```
+
+```{r}
+covid %>% ggplot(aes(x=date, y = inIcuCurrently)) +
+  geom_line()+
+  ggtitle('in ICU currently')
+```
+
+
+```{r}
+covid %>% ggplot(aes(x=date, y = deathIncrease
+  geom_line()
+```
