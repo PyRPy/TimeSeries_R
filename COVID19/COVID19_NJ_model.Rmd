@@ -15,7 +15,7 @@ str(covid)
 ```
 ## EDA
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 library(tidyverse)
 library(dplyr)
 library(lubridate)
@@ -47,6 +47,10 @@ covid %>% ggplot(aes(x=date, y = inIcuCurrently)) +
 
 
 ```{r}
-covid %>% ggplot(aes(x=date, y = deathIncrease
+covid %>% ggplot(aes(x=date, y = deathIncrease)) +
   geom_line()
 ```
+
+## Reference
+
+* Data from https://covidtracking.com/data/state/new-jersey
