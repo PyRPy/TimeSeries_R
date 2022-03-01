@@ -34,6 +34,7 @@ stock(symbols, currency="USD", multiplier=1)
 rm.strat("buyHold")
 
 #Initial Setup
+if (!exists('.blotter')) .blotter <- new.env()
 initPortf("buyHold", "SPY", initDate = initDate)
 initAcct("buyHold", portfolios = "buyHold",
          initDate = initDate, initEq = initEq)

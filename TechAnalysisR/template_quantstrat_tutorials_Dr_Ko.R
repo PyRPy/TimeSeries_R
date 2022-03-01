@@ -32,6 +32,7 @@ initEq=10^6
 rm("account.buyHold",pos=.blotter)
 rm("portfolio.buyHold",pos=.blotter)
 
+if (!exists('.blotter')) .blotter <- new.env()
 initPortf("buyHold", symbol=symbols)
 initAcct("buyHold", portfolios = "buyHold",
          initEq = initEq)
