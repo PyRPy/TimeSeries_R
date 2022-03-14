@@ -24,6 +24,25 @@ from ="2015-01-01"
 to ="2022-03-11"
 initDate = "2014-12-01"
 symbols = c("SPY")
+sampledStocks <- data.frame(Symbol = symbols)
+# store data in a new environment
+stocksEnv <- new.env()
+getSymbols(sampledStocks$Symbol, env = stocksEnv, 
+           from = "2021-01-01", src = "yahoo")
+
+
+for (stock in sampledStocks$Symbol) {
+  chartSeries(stocksEnv[[stock]], 
+              theme="white", 
+              name = stock,
+              TA="addVo();
+              addBBands();
+              addRSI(14); 
+              addSMA(20, col='red'); 
+              addSMA(50, col='blue'); 
+              addSMA(200, col='black')")
+}
+
 currency("USD")
 getSymbols(symbols, from=from, to=to, adjust=TRUE)
 stock(symbols, currency="USD", multiplier=1)
